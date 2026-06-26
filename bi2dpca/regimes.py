@@ -153,6 +153,17 @@ def identify_regimes(
     fit_mask = pre.exploitable & feats.notna().all(axis=1)
     X_fit = feats.loc[fit_mask].to_numpy()
 
+    # Garde-fou : refuser d'apprendre des régimes sur trop peu de points.
+    max_k = max(params.regime_n_components_grid)
+    min_required = max(params.regime_min_fit_points, max_k)
+    if X_fit.shape[0] < min_required:
+        raise ValueError(
+            f"Trop peu de points exploitables pour le clustering des régimes : "
+            f"{X_fit.shape[0]} < {min_required} requis "
+            f"(max composantes={max_k}, regime_min_fit_points={params.regime_min_fit_points}). "
+            f"Vérifier le préfiltrage / la quantité de données."
+        )
+
     scaler = StandardScaler().fit(X_fit)
     model, n_regimes, bic = _select_gmm(scaler.transform(X_fit), params)
 
@@ -163,9 +174,13 @@ def identify_regimes(
     X_all = scaler.transform(feats.loc[score_mask].to_numpy())
     regime.loc[score_mask] = model.predict(X_all)
     # On force -1 sur les pas non exploitables.
-    regime.loc[~pre.exploitable] = -1
+    not_labelable = ~pre.exploitable
+    regime.loc[not_labelable] = -1
 
     regime = _smooth_labels(regime, params.regime_label_smooth_window)
+    # Re-forcer -1 après lissage : le vote majoritaire ne doit jamais
+    # « inventer » un régime sur un pas non exploitable.
+    regime.loc[not_labelable] = -1
     transition = _transition_mask(regime, params.t)
     transition.name = "transition"
     regime.name = "regime"

@@ -91,11 +91,16 @@ class Params:
     regime_smooth_window: int = 16     # médiane glissante sur les variables de régime
     regime_label_smooth_window: int = 8  # lissage majoritaire des labels (anti-papillotement)
     regime_random_state: int = 0
+    regime_min_fit_points: int = 50    # garde-fou : minimum de points exploitables pour entraîner le GMM
 
     # Préfiltrage
     long_gap_steps: int = 4            # un trou > N pas consécutifs = trou long
     stuck_window: int = 8              # fenêtre de détection capteur bloqué
     stuck_min_std: float = 1e-6        # variance glissante en-dessous = bloqué
+
+    # États d'arrêt (machine non surveillée : exclus du fenêtrage et du jeu sain)
+    stop_vars: tuple[str, ...] = ("EE",)  # variable(s) de charge servant à détecter l'arrêt
+    stop_frac: float = 0.10               # arrêt si charge < stop_frac * médiane opérationnelle
     # Bornes physiques par variable canonique ; None => dérivées des données
     # (quantiles robustes) au préfiltrage.
     physical_ranges: dict[str, tuple[float, float]] | None = None
