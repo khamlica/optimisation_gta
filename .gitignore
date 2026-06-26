@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# VS Code
+.vscode/
+
+# Local environment
+.env
+.venv/
+
+# AI assistant metadata
+.claude/
+
+# macOS
+.DS_Store
+
+# Byte-compiled / optimized / DLL files
+*.so
+*.egg
+*.egg-info/
+build/
+dist/
+

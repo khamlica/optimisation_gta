@@ -1,0 +1,127 @@
+"""Configuration centrale du détecteur de dérive GTA.
+
+Tout ce qui dépend d'un GTA particulier (noms de colonnes brutes) ou d'un
+réglage de méthode est rassemblé ici, afin que le reste du pipeline reste
+agnostique au GTA et facilement extensible aux 4 JFC.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+# --------------------------------------------------------------------------- #
+# Variables canoniques
+# --------------------------------------------------------------------------- #
+# Ordre canonique imposé dans la matrice 2D A (colonnes = variables).
+# MP n'existe que sur certains GTA (JFC3) : il est inséré seulement s'il est
+# présent dans les données.
+CANONICAL_ORDER: tuple[str, ...] = ("HP", "MP", "BP", "EE")
+
+# Variables utilisées pour définir les régimes de fonctionnement.
+# EE est volontairement exclue (règle de la référence : ne pas définir les
+# régimes à partir de la variable surveillée/production).
+REGIME_VARS: tuple[str, ...] = ("HP", "MP", "BP")
+
+
+def _raw_columns(jfc: int, *, has_mp: bool) -> dict[str, str]:
+    """Construit le mapping variable canonique -> nom de colonne brute."""
+    cols = {
+        "HP": f"Admission_HP_GTA_JFC{jfc}",
+        "BP": f"Soutirage_BP_GTA_JFC{jfc}",
+        "EE": f"Prod_EE_GTA_JFC{jfc}",
+    }
+    if has_mp:
+        cols["MP"] = f"Soutirage_MP_GTA_JFC{jfc}"
+    return cols
+
+
+# Mapping gta_id -> {variable canonique: colonne brute}.
+# Seul JFC3 possède une mesure MP (Soutirage_MP_GTA_JFC3).
+GTA_CONFIGS: dict[str, dict[str, str]] = {
+    "JFC1": _raw_columns(1, has_mp=False),
+    "JFC2": _raw_columns(2, has_mp=False),
+    "JFC3": _raw_columns(3, has_mp=True),
+    "JFC4": _raw_columns(4, has_mp=False),
+}
+
+# Nom de la colonne d'horodatage dans les CSV bruts.
+DATE_COLUMN: str = "Date"
+
+
+# --------------------------------------------------------------------------- #
+# Paramètres de méthode (réglages par défaut, surchargables)
+# --------------------------------------------------------------------------- #
+@dataclass
+class Params:
+    """Hyperparamètres du pipeline Bi2DPCA.
+
+    Les valeurs par défaut correspondent aux choix figés pour la V1 :
+    données à 15 min, fenêtre 4 h (t=16), overlap 50 %, CPV 85 %.
+    """
+
+    # Échantillonnage / fenêtrage
+    dt_minutes: int = 15           # pas régulier des données
+    window_minutes: int = 240      # durée de fenêtre 2D -> t = 240/15 = 16
+    overlap: float = 0.50          # chevauchement offline -> stride = t*(1-overlap)
+
+    # Réduction de dimension (Cumulative Percent Variance)
+    cpv_time: float = 0.85
+    cpv_space: float = 0.85
+    d_max: int = 20                # garde-fou rang temporel : d <= min(t-1, d_max)
+    p_max: int = 4                 # garde-fou rang spatial  : p <= min(m-1, p_max)
+
+    # Indices activés (conseil MVP : Q d'abord, T2 ensuite)
+    use_t2: bool = False
+
+    # Seuils
+    threshold_quantile: float = 0.99   # quantile KDE / empirique
+    far_target: float = 0.01           # FAR cible (0.5 %–2 %)
+
+    # Décision / persistance
+    persistence_minutes: int = 120     # horizon de persistance pour alert
+    exceed_ratio: float = 0.60         # ratio de dépassement sur l'horizon
+
+    # Split temporel (par régime, sans mélange aléatoire)
+    train_frac: float = 0.70
+    calib_frac: float = 0.15
+    # test_frac = reste
+
+    # Régimes (clustering GMM)
+    regime_n_components_grid: tuple[int, ...] = (2, 3, 4, 5)
+    regime_smooth_window: int = 16     # médiane glissante sur les variables de régime
+    regime_label_smooth_window: int = 8  # lissage majoritaire des labels (anti-papillotement)
+    regime_random_state: int = 0
+
+    # Préfiltrage
+    long_gap_steps: int = 4            # un trou > N pas consécutifs = trou long
+    stuck_window: int = 8              # fenêtre de détection capteur bloqué
+    stuck_min_std: float = 1e-6        # variance glissante en-dessous = bloqué
+    # Bornes physiques par variable canonique ; None => dérivées des données
+    # (quantiles robustes) au préfiltrage.
+    physical_ranges: dict[str, tuple[float, float]] | None = None
+
+    # Nettoyage robuste du jeu sain (médiane + k * IQR sur les scores Q)
+    healthy_iqr_k: float = 3.0
+    healthy_clean_iters: int = 2
+
+    @property
+    def t(self) -> int:
+        """Nombre de points temporels par fenêtre 2D."""
+        return int(self.window_minutes // self.dt_minutes)
+
+    @property
+    def stride(self) -> int:
+        """Pas de glissement offline (overlap)."""
+        return max(1, int(self.t * (1.0 - self.overlap)))
+
+
+# Instance de paramètres par défaut, prête à l'emploi.
+DEFAULT_PARAMS = Params()
+
+
+def variables_for(gta_id: str) -> list[str]:
+    """Liste des variables canoniques déclarées pour un GTA, dans l'ordre canonique."""
+    if gta_id not in GTA_CONFIGS:
+        raise KeyError(f"GTA inconnu : {gta_id!r}. Connus : {sorted(GTA_CONFIGS)}")
+    declared = GTA_CONFIGS[gta_id]
+    return [v for v in CANONICAL_ORDER if v in declared]

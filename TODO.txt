@@ -1,0 +1,34 @@
+============================================================
+ TODO — Détecteur de dérive GTA  (Bi2DPCA C2DPCA-R2DPCA, V1)
+============================================================
+
+Méthode : référence ref/model_reference.md
+Données  : data/Data_Energie_JFC1.csv  (pas 15 min, ~8 mois)
+Choix    : fenêtre 4 h (t=16) | clustering neuf | EE surveillée, jamais prédite
+Règle    : on attend la validation avant de passer à l'étape suivante.
+
+------------------------------------------------------------
+ ÉTAPES
+------------------------------------------------------------
+[ ] 0. Écrire ce TODO.txt                                    <-- en cours
+[ ] 1. config + io_data : chargement modulaire des GTA
+       (colonnes canoniques [HP,(MP),BP,EE], prêt 4 JFC)
+[ ] 2. preprocessing : tri/dédup, pas régulier 15 min,
+       masque "exploitable" (plages physiques, trous, blocages)
+[ ] 3. regimes : clustering GMM sur HP/(MP)/BP lissés,
+       lissage des labels, marquage des transitions
+[ ] 4. windows + healthy : fenêtres 2D 16x m (overlap 50%),
+       jeu sain candidat nettoyé par quantiles robustes
+[ ] 5. model : C2DPCA-R2DPCA par régime, scores Q/T²,
+       seuils par régime (KDE 99% + empirique FAR)
+[ ] 6. online : persistance, décision normal/warning/alert/
+       transition/unknown_regime + reason_codes
+[ ] 7. validation : FAR, dérive injectée (délai détection),
+       pic isolé (warning sans alert), figures Q/T²/régime/statut
+[ ] 8. run_offline + run_online (JFC1) + vérification bout-en-bout
+
+------------------------------------------------------------
+ EXTENSIONS ULTÉRIEURES (hors V1)
+------------------------------------------------------------
+[ ] Étendre à JFC2 / JFC3 (avec MP) / JFC4
+[ ] V2 optionnelle : cross-check énergétique séparé (non bloquant)

@@ -1,0 +1,8 @@
+1) passer en mode plan et créer ta todo liste (pour claude)
+2) traduire cette todo liste en document TODO.txt facilement lisible par l'utilisateur, sous forme de check liste. Chaque étape est résumée sur une ligne.
+3) attendre validation pour passer à l'étape suivante.
+
+- demander à l'utilisateur si un choix doit être fait
+- ne pas lire 01_...pdf si le model_reference.md est suffisant
+- le code ne traite pour l'instant que Data_Energie_JFC1.csv, mais devra être adaptée ensuite pour traiter toutes les JFC, commencer par un format modulaire.
+- il est encouragé de faire une lecture critique de model_reference.md et de signaler un problème avant implémentation
