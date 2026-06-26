@@ -92,3 +92,25 @@ Implémenter `online.py` :
 * états `normal`, `warning`, `alert`, `non_scoré` ;
 * logique de persistance ;
 * `reason_codes` explicites.
+
+Étape 6 validée fonctionnellement.
+
+online.py implémente :
+- n_persist = 8 pour 2 h à pas 15 min ;
+- transition → statut transition, non scoré ;
+- régime inconnu → unknown_regime ;
+- reason_codes explicites ;
+- warning pour dépassements isolés ;
+- alert pour dépassements persistants.
+
+Test régime 2 :
+- 64 normal
+- 4 warning
+- 77 alert
+
+Les alertes du régime 2 prolongent le signal déjà observé à l’étape 5 :
+- soit dérive réelle récente ;
+- soit régime 2 trop hétérogène.
+
+Ce point n’est pas traité comme bug.
+Il sera analysé à l’étape validation.
