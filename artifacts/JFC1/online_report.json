@@ -1,0 +1,22 @@
+{
+  "gta_id": "JFC1",
+  "n_windows_replayed": 1829,
+  "status_counts": {
+    "normal": 1679,
+    "warning": 103,
+    "alert": 47
+  },
+  "figure": "artifacts/JFC1/monitoring_online.png",
+  "drift_injected": {
+    "first_warning_window": 0,
+    "first_alert_window": 7,
+    "delay_minutes": 105,
+    "n_windows": 651,
+    "regime": 2
+  },
+  "isolated_spike": {
+    "regime": 2,
+    "has_alert": false,
+    "has_warning": true
+  }
+}

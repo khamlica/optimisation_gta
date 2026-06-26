@@ -10,22 +10,22 @@ Règle    : on attend la validation avant de passer à l'étape suivante.
 ------------------------------------------------------------
  ÉTAPES
 ------------------------------------------------------------
-[ ] 0. Écrire ce TODO.txt                                    <-- en cours
-[ ] 1. config + io_data : chargement modulaire des GTA
+[x] 0. Écrire ce TODO.txt
+[x] 1. config + io_data : chargement modulaire des GTA
        (colonnes canoniques [HP,(MP),BP,EE], prêt 4 JFC)
-[ ] 2. preprocessing : tri/dédup, pas régulier 15 min,
+[x] 2. preprocessing : tri/dédup, pas régulier 15 min,
        masque "exploitable" (plages physiques, trous, blocages)
-[ ] 3. regimes : clustering GMM sur HP/(MP)/BP lissés,
+[x] 3. regimes : clustering GMM sur HP/(MP)/BP lissés,
        lissage des labels, marquage des transitions
-[ ] 4. windows + healthy : fenêtres 2D 16x m (overlap 50%),
+[x] 4. windows + healthy : fenêtres 2D 16x m (overlap 50%),
        jeu sain candidat nettoyé par quantiles robustes
-[ ] 5. model : C2DPCA-R2DPCA par régime, scores Q/T²,
+[x] 5. model : C2DPCA-R2DPCA par régime, scores Q/T²,
        seuils par régime (KDE 99% + empirique FAR)
-[ ] 6. online : persistance, décision normal/warning/alert/
+[x] 6. online : persistance, décision normal/warning/alert/
        transition/unknown_regime + reason_codes
-[ ] 7. validation : FAR, dérive injectée (délai détection),
+[x] 7. validation : FAR, dérive injectée (délai détection),
        pic isolé (warning sans alert), figures Q/T²/régime/statut
-[ ] 8. run_offline + run_online (JFC1) + vérification bout-en-bout
+[x] 8. run_offline + run_online (JFC1) + vérification bout-en-bout
 
 ------------------------------------------------------------
  EXTENSIONS ULTÉRIEURES (hors V1)

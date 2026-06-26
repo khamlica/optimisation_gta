@@ -140,13 +140,50 @@ def _transition_mask(regime: pd.Series, t: int) -> pd.Series:
     return pd.Series(trans, index=regime.index)
 
 
+def assign_regimes(
+    pre: PreprocessResult,
+    model: GaussianMixture,
+    scaler: StandardScaler,
+    regime_vars: list[str],
+    params: Params = config.DEFAULT_PARAMS,
+) -> tuple[pd.Series, pd.Series]:
+    """Affecte des labels de régime à partir d'un GMM **déjà entraîné**.
+
+    Utilisé en ligne (et en interne par ``identify_regimes``) pour garantir une
+    affectation identique entre offline et online. Renvoie ``(regime, transition)``.
+    """
+    feats = (
+        pre.df[regime_vars]
+        .rolling(window=params.regime_smooth_window, min_periods=1, center=True)
+        .median()
+    )
+
+    regime = pd.Series(-1, index=pre.df.index, dtype=int)
+    score_mask = feats.notna().all(axis=1)
+    if score_mask.any():
+        X_all = scaler.transform(feats.loc[score_mask].to_numpy())
+        regime.loc[score_mask] = model.predict(X_all)
+
+    not_labelable = ~pre.exploitable
+    regime.loc[not_labelable] = -1
+    regime = _smooth_labels(regime, params.regime_label_smooth_window)
+    # Re-forcer -1 après lissage : le vote majoritaire ne doit jamais
+    # « inventer » un régime sur un pas non exploitable.
+    regime.loc[not_labelable] = -1
+    regime.name = "regime"
+
+    transition = _transition_mask(regime, params.t)
+    transition.name = "transition"
+    return regime, transition
+
+
 def identify_regimes(
     pre: PreprocessResult, params: Params = config.DEFAULT_PARAMS
 ) -> RegimeResult:
     """Apprend les régimes par GMM et produit labels + masque de transition.
 
-    Le clustering n'est entraîné que sur les pas exploitables ; les autres
-    reçoivent le label ``-1`` puis sont traités comme transitions.
+    Le clustering n'est entraîné que sur les pas exploitables ; l'affectation
+    finale (y compris lissage et transitions) est déléguée à ``assign_regimes``.
     """
     feats, regime_vars = _regime_feature_frame(pre, params)
 
@@ -167,23 +204,7 @@ def identify_regimes(
     scaler = StandardScaler().fit(X_fit)
     model, n_regimes, bic = _select_gmm(scaler.transform(X_fit), params)
 
-    # Affectation de tous les pas labellisables (features non NaN),
-    # -1 ailleurs (non exploitable / NaN).
-    regime = pd.Series(-1, index=pre.df.index, dtype=int)
-    score_mask = feats.notna().all(axis=1)
-    X_all = scaler.transform(feats.loc[score_mask].to_numpy())
-    regime.loc[score_mask] = model.predict(X_all)
-    # On force -1 sur les pas non exploitables.
-    not_labelable = ~pre.exploitable
-    regime.loc[not_labelable] = -1
-
-    regime = _smooth_labels(regime, params.regime_label_smooth_window)
-    # Re-forcer -1 après lissage : le vote majoritaire ne doit jamais
-    # « inventer » un régime sur un pas non exploitable.
-    regime.loc[not_labelable] = -1
-    transition = _transition_mask(regime, params.t)
-    transition.name = "transition"
-    regime.name = "regime"
+    regime, transition = assign_regimes(pre, model, scaler, regime_vars, params)
 
     return RegimeResult(
         regime=regime,
