@@ -6,8 +6,9 @@
   "n_windows": 0,
   "n_regimes": 5,
   "regimes_modeled": [],
-  "far_calib_global": NaN,
-  "far_test_global": NaN,
+  "regimes_insufficient": [],
+  "far_calib_global": null,
+  "far_test_global": null,
   "scores_finite_test": true,
   "bundle": "artifacts/JFC3/bundle.pkl"
 }

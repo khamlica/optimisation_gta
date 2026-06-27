@@ -1,5 +1,5 @@
-gta_id,exploitable_pct,monitorable_pct,n_regimes,n_windows,FAR_calib_global,n_normal,n_warning,n_alert
-JFC1,99.71,71.53,5,1829,0.0476,1679,103,47
-JFC2,73.68,54.88,5,1033,0.0588,908,111,14
-JFC3,4.67,0.04,5,0,,0,0,0
-JFC4,99.93,67.33,5,1304,0.0359,1207,83,14
+gta_id,exploitable_pct,monitorable_pct,n_regimes,n_modeled,n_insufficient,n_windows,FAR_calib_before,FAR_calib_after,n_normal,n_warning,n_alert
+JFC1,99.71,71.53,5,3,1,1829,0.0476,0.0076,1639,71,41
+JFC2,73.68,54.88,5,2,2,1033,0.0588,0.0083,719,79,11
+JFC3,4.67,0.04,5,0,0,0,,,0,0,0
+JFC4,99.93,67.33,5,2,2,1304,0.0359,0.0053,1206,44,12

@@ -43,12 +43,23 @@ def train_gta(gta_id: str, data_path: str, params: config.Params, out_dir: str) 
 
     models: dict[int, model_mod.RegimeModel] = {}
     splits: dict[int, healthy.TemporalSplit] = {}
+    regime_status: dict[int, str] = {}
     for r in sorted({int(x) for x in wi.regime}):
         starts = wi.for_regime(r)
         sp = healthy.time_split(starts, params)
         splits[r] = sp
-        if sp.train.size < params.regime_n_components_grid[0] + 1:
-            print(f"[skip] régime {r}: trop peu de fenêtres train ({sp.train.size})")
+        # Gate sur les effectifs : un régime sous-peuplé donne des seuils
+        # instables -> exclu du modèle et marqué insufficient_data.
+        if (
+            sp.train.size < params.min_train_windows_per_regime
+            or sp.calib.size < params.min_calib_windows_per_regime
+        ):
+            regime_status[r] = "insufficient_data"
+            print(
+                f"[insufficient_data] régime {r}: "
+                f"train={sp.train.size} (<{params.min_train_windows_per_regime}) "
+                f"calib={sp.calib.size} (<{params.min_calib_windows_per_regime})"
+            )
             continue
         models[r] = model_mod.train_regime_model(
             r,
@@ -57,6 +68,7 @@ def train_gta(gta_id: str, data_path: str, params: config.Params, out_dir: str) 
             windows.extract_windows(vals, sp.calib, params.t),
             params,
         )
+        regime_status[r] = "modeled"
 
     # Diagnostics FAR sur calib (sain) et test.
     far_calib = validation.far_on_windows(
@@ -84,23 +96,47 @@ def train_gta(gta_id: str, data_path: str, params: config.Params, out_dir: str) 
     with open(bundle_path, "wb") as f:
         pickle.dump(bundle, f)
 
-    # Tableau de seuils + tailles, lisible.
+    # Tableau de seuils + tailles + statut, lisible. Inclut les régimes exclus.
     rows = []
-    for r, m in models.items():
-        rows.append(
-            {
-                "regime": r,
-                "d": int(m.V.shape[1]),
-                "p": int(m.U.shape[1]),
-                "n_train_clean": m.n_train,
-                **{f"thr_{k}": round(v, 4) for k, v in m.thresholds.items()},
-                "far_calib": round(far_calib["per_regime"].get(r, {}).get("far", float("nan")), 4),
-                "far_test": round(far_test["per_regime"].get(r, {}).get("far", float("nan")), 4),
-            }
-        )
+    for r in sorted(splits):
+        sp = splits[r]
+        status = regime_status.get(r, "insufficient_data")
+        if status == "modeled":
+            m = models[r]
+            rows.append(
+                {
+                    "regime": r,
+                    "status": status,
+                    "n_train": int(sp.train.size),
+                    "n_calib": int(sp.calib.size),
+                    "d": int(m.V.shape[1]),
+                    "p": int(m.U.shape[1]),
+                    "n_train_clean": m.n_train,
+                    **{f"thr_{k}": round(v, 4) for k, v in m.thresholds.items()},
+                    "far_calib": round(far_calib["per_regime"].get(r, {}).get("far", float("nan")), 4),
+                    "far_test": round(far_test["per_regime"].get(r, {}).get("far", float("nan")), 4),
+                }
+            )
+        else:
+            rows.append(
+                {
+                    "regime": r,
+                    "status": status,
+                    "n_train": int(sp.train.size),
+                    "n_calib": int(sp.calib.size),
+                    "d": None,
+                    "p": None,
+                    "n_train_clean": None,
+                    "thr_Q_time": float("nan"),
+                    "thr_Q_space": float("nan"),
+                    "far_calib": float("nan"),
+                    "far_test": float("nan"),
+                }
+            )
     summary = pd.DataFrame(rows)
     summary.to_csv(os.path.join(out_dir, "regime_summary.csv"), index=False)
 
+    regimes_insufficient = sorted(r for r, s in regime_status.items() if s == "insufficient_data")
     metrics = {
         "gta_id": gta_id,
         "n_points": pre.report["n_points"],
@@ -109,8 +145,9 @@ def train_gta(gta_id: str, data_path: str, params: config.Params, out_dir: str) 
         "n_windows": len(wi),
         "n_regimes": reg.n_regimes,
         "regimes_modeled": sorted(models),
-        "far_calib_global": round(far_calib["far_global"], 4),
-        "far_test_global": round(far_test["far_global"], 4),
+        "regimes_insufficient": regimes_insufficient,
+        "far_calib_global": round(far_calib["far_global"], 4) if far_calib["n_total"] else None,
+        "far_test_global": round(far_test["far_global"], 4) if far_test["n_total"] else None,
         "scores_finite_test": bool(finite_ok),
         "bundle": bundle_path,
     }

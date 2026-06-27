@@ -6,13 +6,15 @@
   "n_windows": 1304,
   "n_regimes": 5,
   "regimes_modeled": [
-    0,
-    2,
     3,
     4
   ],
-  "far_calib_global": 0.0359,
-  "far_test_global": 0.0553,
+  "regimes_insufficient": [
+    0,
+    2
+  ],
+  "far_calib_global": 0.0053,
+  "far_test_global": 0.0209,
   "scores_finite_test": true,
   "bundle": "artifacts/JFC4/bundle.pkl"
 }

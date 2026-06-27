@@ -86,6 +86,11 @@ class Params:
     calib_frac: float = 0.15
     # test_frac = reste
 
+    # Effectifs minimaux par régime : en-dessous, le régime est exclu du
+    # modèle et marqué insufficient_data (seuils instables sinon).
+    min_train_windows_per_regime: int = 100
+    min_calib_windows_per_regime: int = 30
+
     # Régimes (clustering GMM)
     regime_n_components_grid: tuple[int, ...] = (2, 3, 4, 5)
     regime_smooth_window: int = 16     # médiane glissante sur les variables de régime

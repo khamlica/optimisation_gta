@@ -8,11 +8,13 @@
   "regimes_modeled": [
     0,
     2,
-    3,
+    3
+  ],
+  "regimes_insufficient": [
     4
   ],
-  "far_calib_global": 0.0476,
-  "far_test_global": 0.295,
+  "far_calib_global": 0.0076,
+  "far_test_global": 0.3057,
   "scores_finite_test": true,
   "bundle": "artifacts/JFC1/bundle.pkl"
 }

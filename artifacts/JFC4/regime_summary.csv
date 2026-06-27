@@ -1,5 +1,5 @@
-regime,d,p,n_train_clean,thr_Q_time,thr_Q_space,far_calib,far_test
-0,1,1,5,184.7127,0.0155,0.0,1.0
-2,1,2,20,96912.0734,65.3092,0.0,0.3333
-3,1,2,558,26.5447,2.7056,0.0274,0.0408
-4,1,2,166,88.9336,5.2358,0.0698,0.0227
+regime,status,n_train,n_calib,d,p,n_train_clean,thr_Q_time,thr_Q_space,far_calib,far_test
+0,insufficient_data,5,1,,,,,,,
+2,insufficient_data,23,5,,,,,,,
+3,modeled,681,146,1.0,2.0,558.0,75.3939,2.5415,0.0068,0.0272
+4,modeled,201,43,1.0,2.0,166.0,133.5758,7.6089,0.0,0.0

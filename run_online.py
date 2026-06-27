@@ -114,8 +114,18 @@ def replay_gta(gta_id: str, data_path: str, out_dir: str) -> dict:
     return report
 
 
-def build_summary(gtas: list[str], base_dir: str, out_csv: str) -> str:
-    """Assemble le rapport comparatif par GTA (offline metrics + online counts)."""
+def build_summary(
+    gtas: list[str],
+    base_dir: str,
+    out_csv: str,
+    before_map: dict[str, float] | None = None,
+) -> str:
+    """Assemble le rapport comparatif par GTA (offline metrics + online counts).
+
+    ``before_map`` (gta -> FAR calib de l'exécution précédente) permet d'afficher
+    le FAR calib **avant/après** correction de la calibration.
+    """
+    before_map = before_map or {}
     rows = []
     for gta in gtas:
         gdir = os.path.join(base_dir, gta)
@@ -135,8 +145,11 @@ def build_summary(gtas: list[str], base_dir: str, out_csv: str) -> str:
                 "exploitable_pct": m.get("pct_exploitable"),
                 "monitorable_pct": m.get("pct_monitorable"),
                 "n_regimes": m.get("n_regimes"),
+                "n_modeled": len(m.get("regimes_modeled", [])),
+                "n_insufficient": len(m.get("regimes_insufficient", [])),
                 "n_windows": m.get("n_windows"),
-                "FAR_calib_global": m.get("far_calib_global"),
+                "FAR_calib_before": before_map.get(gta),
+                "FAR_calib_after": m.get("far_calib_global"),
                 "n_normal": sc.get("normal", 0),
                 "n_warning": sc.get("warning", 0),
                 "n_alert": sc.get("alert", 0),
@@ -147,6 +160,20 @@ def build_summary(gtas: list[str], base_dir: str, out_csv: str) -> str:
     print(f"\n===== RAPPORT COMPARATIF ({out_csv}) =====")
     print(df.to_string(index=False))
     return out_csv
+
+
+def _read_before_map(path: str) -> dict[str, float]:
+    """FAR calib de l'exécution précédente, depuis un summary existant."""
+    if not os.path.exists(path):
+        return {}
+    prev = pd.read_csv(path)
+    col = next(
+        (c for c in ("FAR_calib_after", "FAR_calib_global") if c in prev.columns),
+        None,
+    )
+    if col is None or "gta_id" not in prev.columns:
+        return {}
+    return {str(g): v for g, v in zip(prev["gta_id"], prev[col])}
 
 
 def main() -> None:
@@ -162,6 +189,8 @@ def main() -> None:
     args = ap.parse_args()
 
     gtas = sorted(config.GTA_CONFIGS) if args.gta == "all" else [args.gta]
+    # Capturer le FAR calib précédent AVANT d'écraser le summary (pour avant/après).
+    before_map = _read_before_map(args.summary) if args.gta == "all" else {}
     for gta in gtas:
         data_path = (
             args.data
@@ -180,7 +209,7 @@ def main() -> None:
             print(f"[ERREUR] {gta}: {exc}")
 
     if args.gta == "all":
-        build_summary(gtas, "artifacts", args.summary)
+        build_summary(gtas, "artifacts", args.summary, before_map=before_map)
 
 
 if __name__ == "__main__":

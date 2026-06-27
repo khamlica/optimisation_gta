@@ -233,16 +233,19 @@ def train_regime_model(
 
     assert mean is not None and V is not None
 
-    # Seuils : sur train nettoyé + calib (standardisés avec les stats finales).
-    train_std = (kept - mean[None, None, :]) / std[None, None, :]
-    calib_std = (
-        (calib_windows - mean[None, None, :]) / std[None, None, :]
-        if calib_windows.size
-        else np.empty((0, kept.shape[1], kept.shape[2]))
-    )
-    cal_for_thr = np.concatenate([train_std, calib_std], axis=0) if calib_std.size else train_std
-    cal_scores = score_windows(cal_for_thr, V, U, lambda_time, lambda_space)
+    # Garde-fou : calibrer des seuils fiables exige un jeu de calibration
+    # suffisant (sinon le quantile 99 % n'a pas de sens).
+    if calib_windows.shape[0] < params.min_calib_windows_per_regime:
+        raise ValueError(
+            f"Régime {regime_id} : calib insuffisant pour calibrer les seuils "
+            f"({calib_windows.shape[0]} < {params.min_calib_windows_per_regime}). "
+            f"Régime à marquer 'insufficient_data'."
+        )
 
+    # Seuils : calibrés UNIQUEMENT sur le jeu de calibration sain (jamais sur le
+    # train, pour éviter un seuil optimiste tiré par les données d'entraînement).
+    calib_std = (calib_windows - mean[None, None, :]) / std[None, None, :]
+    cal_scores = score_windows(calib_std, V, U, lambda_time, lambda_space)
     thresholds = {idx: fit_threshold(cal_scores[idx], params) for idx in active}
 
     return RegimeModel(
