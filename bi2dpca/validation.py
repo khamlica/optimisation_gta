@@ -136,7 +136,9 @@ def replay_grid(
     n = len(reg)
     insufficient_regimes = set(insufficient_regimes)
 
-    ps = PersistenceState(params)
+    # La persistance doit être échelonnée sur la cadence réelle du rejeu
+    # (stride * dt), sinon l'horizon d'alerte est faussé.
+    ps = PersistenceState(params, stride_minutes=stride * params.dt_minutes)
     rows = []
     for s in range(0, n - t + 1, stride):
         sl_reg = reg[s : s + t]

@@ -59,10 +59,11 @@ def replay_gta(gta_id: str, data_path: str, out_dir: str) -> dict:
     wi = windows.enumerate_windows(regime, mon, params.t, params.stride)
     vals = pre.df[data.variables].to_numpy()
 
-    # Rejeu sur toute la grille : chaque fenêtre est classifiée (scored vs
-    # transition / insufficient_data / unknown_regime).
+    # Rejeu sur toute la grille à la cadence ONLINE (stride fin, ex. 15 min),
+    # distincte du stride d'entraînement : chaque fenêtre est classifiée.
     scored = validation.replay_grid(
-        vals, regime, mon, pre.df.index, models, insufficient, params
+        vals, regime, mon, pre.df.index, models, insufficient, params,
+        stride=params.online_stride_steps,
     )
     scored.to_csv(os.path.join(out_dir, "online_status.csv"))
     fig = validation.plot_monitoring(scored, os.path.join(out_dir, "monitoring_online.png"))
@@ -153,7 +154,7 @@ def build_summary(
                 "n_regimes": m.get("n_regimes"),
                 "n_modeled": len(m.get("regimes_modeled", [])),
                 "n_insufficient_regimes": len(m.get("regimes_insufficient", [])),
-                "n_windows": m.get("n_windows"),
+                "n_windows": rep.get("n_grid_windows", m.get("n_windows")),
                 "FAR_calib_before": before_map.get(gta),
                 "FAR_calib_after": m.get("far_calib_global"),
                 "n_normal": rep.get("n_normal", 0),

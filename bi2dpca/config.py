@@ -104,6 +104,10 @@ class Params:
     persistence_minutes: int = 120     # horizon de persistance pour alert
     exceed_ratio: float = 0.60         # ratio de dépassement sur l'horizon
 
+    # Cadence du scoring en ligne (indépendante du stride d'entraînement) :
+    # 1 pas = 15 min -> détection fine et persistance correctement échelonnée.
+    online_stride_steps: int = 1
+
     # Split temporel (par régime, sans mélange aléatoire)
     train_frac: float = 0.70
     calib_frac: float = 0.15
@@ -146,6 +150,11 @@ class Params:
     def stride(self) -> int:
         """Pas de glissement offline (overlap)."""
         return max(1, int(self.t * (1.0 - self.overlap)))
+
+    @property
+    def online_stride_minutes(self) -> int:
+        """Cadence du scoring en ligne, en minutes."""
+        return self.online_stride_steps * self.dt_minutes
 
 
 # Instance de paramètres par défaut, prête à l'emploi.
