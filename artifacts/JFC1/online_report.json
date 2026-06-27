@@ -1,12 +1,22 @@
 {
   "gta_id": "JFC1",
-  "n_windows_replayed": 1829,
+  "n_grid_windows": 2872,
+  "n_scorable_windows": 1829,
   "status_counts": {
-    "normal": 1639,
-    "unknown_regime": 78,
+    "normal": 1589,
+    "transition": 1103,
+    "insufficient_data": 74,
     "warning": 71,
-    "alert": 41
+    "alert": 35
   },
+  "n_normal": 1589,
+  "n_warning": 71,
+  "n_alert": 35,
+  "n_transition": 1103,
+  "n_unknown_regime": 0,
+  "n_insufficient_data": 74,
+  "n_scored_total": 1695,
+  "n_non_scored_total": 1177,
   "figure": "artifacts/JFC1/monitoring_online.png",
   "drift_injected": {
     "first_warning_window": 0,

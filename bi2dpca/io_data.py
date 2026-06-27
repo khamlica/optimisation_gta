@@ -65,7 +65,9 @@ def resolve_data_path(gta_id: str) -> str:
     )
 
 
-def load_gta(path: str, gta_id: str) -> GtaData:
+def load_gta(
+    path: str, gta_id: str, exclude_vars: tuple[str, ...] = ()
+) -> GtaData:
     """Charge les données d'un GTA depuis un CSV (mono- ou multi-GTA).
 
     Parameters
@@ -74,6 +76,9 @@ def load_gta(path: str, gta_id: str) -> GtaData:
         Chemin du fichier CSV. La première colonne (index entier brut) est ignorée.
     gta_id:
         Clé de ``config.GTA_CONFIGS`` (ex. ``"JFC1"``).
+    exclude_vars:
+        Variables canoniques à écarter au chargement (ex. ``("MP",)`` pour un
+        test de sensibilité). Outil de diagnostic ; ne modifie pas la méthode.
 
     Returns
     -------
@@ -106,7 +111,9 @@ def load_gta(path: str, gta_id: str) -> GtaData:
     # Sélection + renommage canonique des colonnes présentes pour ce GTA.
     col_map = config.GTA_CONFIGS[gta_id]  # {canonique: brute}
     present = {
-        canon: brute for canon, brute in col_map.items() if brute in raw.columns
+        canon: brute
+        for canon, brute in col_map.items()
+        if brute in raw.columns and canon not in exclude_vars
     }
     if not present:
         raise KeyError(

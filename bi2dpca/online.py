@@ -98,6 +98,7 @@ def score_online(
     current_regime: int,
     is_transition: bool,
     persistence: PersistenceState,
+    insufficient_regimes: frozenset[int] | set[int] | None = None,
 ) -> WindowResult:
     """Évalue une fenêtre brute ``A_raw (t×m)`` pour son régime courant.
 
@@ -113,8 +114,17 @@ def score_online(
         ``True`` si la fenêtre chevauche un changement de régime / un arrêt.
     persistence:
         État de persistance (mis à jour ici).
+    insufficient_regimes:
+        Régimes connus mais exclus du modèle (sous-peuplés) : étiquetés
+        ``insufficient_data`` plutôt que ``unknown_regime``.
     """
+    insufficient_regimes = insufficient_regimes or set()
+
     if current_regime not in models:
+        if current_regime in insufficient_regimes:
+            return WindowResult(
+                "insufficient_data", current_regime, {}, False, ["insufficient_data"]
+            )
         return WindowResult("unknown_regime", current_regime, {}, False, ["unknown_regime"])
 
     if is_transition:

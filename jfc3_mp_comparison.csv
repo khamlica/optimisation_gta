@@ -1,0 +1,3 @@
+variante,exploitable_pct,monitorable_pct,n_windows,n_modeled,FAR_calib,n_normal,n_warning,n_alert,n_transition,n_unknown_regime,n_insufficient_data
+avec_MP,4.67,0.04,0,0,,0,0,0,2170,0,0
+sans_MP,97.47,78.89,1513,1,0.0176,972,93,46,708,0,351

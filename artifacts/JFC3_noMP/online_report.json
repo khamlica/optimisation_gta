@@ -1,0 +1,33 @@
+{
+  "gta_id": "JFC3",
+  "n_grid_windows": 2170,
+  "n_scorable_windows": 1513,
+  "status_counts": {
+    "normal": 972,
+    "transition": 708,
+    "insufficient_data": 351,
+    "warning": 93,
+    "alert": 46
+  },
+  "n_normal": 972,
+  "n_warning": 93,
+  "n_alert": 46,
+  "n_transition": 708,
+  "n_unknown_regime": 0,
+  "n_insufficient_data": 351,
+  "n_scored_total": 1111,
+  "n_non_scored_total": 1059,
+  "figure": "artifacts/JFC3_noMP/monitoring_online.png",
+  "drift_injected": {
+    "first_warning_window": 4,
+    "first_alert_window": 8,
+    "delay_minutes": 120,
+    "n_windows": 746,
+    "regime": 0
+  },
+  "isolated_spike": {
+    "regime": 0,
+    "has_alert": false,
+    "has_warning": true
+  }
+}

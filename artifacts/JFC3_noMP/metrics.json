@@ -1,0 +1,21 @@
+{
+  "gta_id": "JFC3",
+  "n_points": 17373,
+  "pct_exploitable": 97.47,
+  "pct_monitorable": 78.89,
+  "n_windows": 1513,
+  "n_regimes": 5,
+  "regimes_modeled": [
+    0
+  ],
+  "regimes_insufficient": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "far_calib_global": 0.0176,
+  "far_test_global": 0.6023,
+  "scores_finite_test": true,
+  "bundle": "artifacts/JFC3_noMP/bundle.pkl"
+}

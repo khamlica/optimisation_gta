@@ -1,7 +1,18 @@
 {
   "gta_id": "JFC3",
-  "n_windows_replayed": 0,
-  "status_counts": {},
+  "n_grid_windows": 2170,
+  "n_scorable_windows": 0,
+  "status_counts": {
+    "transition": 2170
+  },
+  "n_normal": 0,
+  "n_warning": 0,
+  "n_alert": 0,
+  "n_transition": 2170,
+  "n_unknown_regime": 0,
+  "n_insufficient_data": 0,
+  "n_scored_total": 0,
+  "n_non_scored_total": 2170,
   "figure": "artifacts/JFC3/monitoring_online.png",
   "drift_injected": {},
   "isolated_spike": {}

@@ -36,12 +36,14 @@ def load_bundle(out_dir: str) -> dict:
 
 
 def replay_gta(gta_id: str, data_path: str, out_dir: str) -> dict:
-    """Rejoue le monitoring online sur l'ensemble des fenêtres surveillables."""
+    """Rejoue le monitoring online sur toute la grille (fenêtres classifiées)."""
     bundle = load_bundle(out_dir)
     params: config.Params = bundle["params"]
     models = bundle["models"]
+    insufficient = set(bundle.get("regimes_insufficient", []))
+    exclude_vars = tuple(bundle.get("exclude_vars", []))
 
-    data = io_data.load_gta(data_path, gta_id)
+    data = io_data.load_gta(data_path, gta_id, exclude_vars=exclude_vars)
     pre = preprocessing.preprocess(data, params)
 
     # Ré-affectation des régimes avec le GMM entraîné offline (pas de ré-fit).
@@ -57,13 +59,15 @@ def replay_gta(gta_id: str, data_path: str, out_dir: str) -> dict:
     wi = windows.enumerate_windows(regime, mon, params.t, params.stride)
     vals = pre.df[data.variables].to_numpy()
 
-    # Drapeaux de transition par fenêtre (par construction toutes valides, donc
-    # False ; conservé pour cohérence d'API).
-    scored = validation.score_sequence(vals, wi, pre.df.index, None, models, params)
+    # Rejeu sur toute la grille : chaque fenêtre est classifiée (scored vs
+    # transition / insufficient_data / unknown_regime).
+    scored = validation.replay_grid(
+        vals, regime, mon, pre.df.index, models, insufficient, params
+    )
     scored.to_csv(os.path.join(out_dir, "online_status.csv"))
     fig = validation.plot_monitoring(scored, os.path.join(out_dir, "monitoring_online.png"))
 
-    status_counts = scored["status"].value_counts().to_dict()
+    counts = validation.status_summary(scored)
 
     # --- Test dérive injectée + pic isolé sur un régime bien fourni ---
     drift_report = {}
@@ -102,8 +106,9 @@ def replay_gta(gta_id: str, data_path: str, out_dir: str) -> dict:
 
     report = {
         "gta_id": gta_id,
-        "n_windows_replayed": len(wi),
-        "status_counts": status_counts,
+        "n_grid_windows": int(len(scored)),
+        "n_scorable_windows": len(wi),
+        **counts,
         "figure": fig,
         "drift_injected": drift_report,
         "isolated_spike": spike_report,
@@ -138,7 +143,6 @@ def build_summary(
             m = json.load(f)
         with open(report_path) as f:
             rep = json.load(f)
-        sc = rep.get("status_counts", {})
         rows.append(
             {
                 "gta_id": gta,
@@ -146,13 +150,18 @@ def build_summary(
                 "monitorable_pct": m.get("pct_monitorable"),
                 "n_regimes": m.get("n_regimes"),
                 "n_modeled": len(m.get("regimes_modeled", [])),
-                "n_insufficient": len(m.get("regimes_insufficient", [])),
+                "n_insufficient_regimes": len(m.get("regimes_insufficient", [])),
                 "n_windows": m.get("n_windows"),
                 "FAR_calib_before": before_map.get(gta),
                 "FAR_calib_after": m.get("far_calib_global"),
-                "n_normal": sc.get("normal", 0),
-                "n_warning": sc.get("warning", 0),
-                "n_alert": sc.get("alert", 0),
+                "n_normal": rep.get("n_normal", 0),
+                "n_warning": rep.get("n_warning", 0),
+                "n_alert": rep.get("n_alert", 0),
+                "n_transition": rep.get("n_transition", 0),
+                "n_unknown_regime": rep.get("n_unknown_regime", 0),
+                "n_insufficient_data": rep.get("n_insufficient_data", 0),
+                "n_scored_total": rep.get("n_scored_total", 0),
+                "n_non_scored_total": rep.get("n_non_scored_total", 0),
             }
         )
     df = pd.DataFrame(rows)
@@ -167,8 +176,13 @@ def _read_before_map(path: str) -> dict[str, float]:
     if not os.path.exists(path):
         return {}
     prev = pd.read_csv(path)
+    # Préférer le FAR d'origine (avant correction) s'il est déjà mémorisé.
     col = next(
-        (c for c in ("FAR_calib_after", "FAR_calib_global") if c in prev.columns),
+        (
+            c
+            for c in ("FAR_calib_before", "FAR_calib_global", "FAR_calib_after")
+            if c in prev.columns
+        ),
         None,
     )
     if col is None or "gta_id" not in prev.columns:

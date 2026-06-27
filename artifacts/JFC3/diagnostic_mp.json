@@ -1,0 +1,58 @@
+{
+  "gta_id": "JFC3",
+  "source": "data/Data_Energie_4JFC.csv",
+  "per_variable": {
+    "HP": {
+      "nan_pct": 0.02,
+      "zero_pct": 0.0,
+      "near_zero_pct": 0.0,
+      "stuck_pct": 0.0,
+      "min": 0.344548762,
+      "max": 215.335236,
+      "mean": 175.61304071850606
+    },
+    "MP": {
+      "nan_pct": 0.02,
+      "zero_pct": 82.44,
+      "near_zero_pct": 82.44,
+      "stuck_pct": 75.72,
+      "min": 5.423357e-20,
+      "max": 7.283649,
+      "mean": 0.5487896558704191
+    },
+    "BP": {
+      "nan_pct": 0.02,
+      "zero_pct": 1.38,
+      "near_zero_pct": 1.38,
+      "stuck_pct": 0.11,
+      "min": 4.36191259e-19,
+      "max": 73.22582,
+      "mean": 42.92061273632296
+    },
+    "EE": {
+      "nan_pct": 0.03,
+      "zero_pct": 0.0,
+      "near_zero_pct": 0.0,
+      "stuck_pct": 0.0,
+      "min": -0.0454497933,
+      "max": 42.4975,
+      "mean": 35.81734713303614
+    }
+  },
+  "preprocess_report_with_MP": {
+    "n_points": 17373,
+    "n_missing": 5,
+    "n_out_of_range": 6926,
+    "n_long_gap": 0,
+    "n_stuck": 13156,
+    "n_exploitable": 812
+  },
+  "mp_impact": {
+    "exploitable_pct_with_MP": 4.67,
+    "exploitable_pct_without_MP": 97.47,
+    "exploitable_gain_pts": 92.8,
+    "monitorable_pct_with_MP": 0.04,
+    "monitorable_pct_without_MP": 78.89,
+    "monitorable_gain_pts": 78.85
+  }
+}

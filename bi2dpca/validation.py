@@ -26,6 +26,10 @@ from .config import Params
 from .model import RegimeModel
 from .online import PersistenceState, score_online
 
+# Statuts considérés comme « scorés » (la fenêtre a effectivement été évaluée).
+SCORED_STATUSES = ("normal", "warning", "alert")
+NON_SCORED_STATUSES = ("transition", "unknown_regime", "insufficient_data")
+
 
 # --------------------------------------------------------------------------- #
 # Rejeu d'une séquence de fenêtres en ligne
@@ -53,25 +57,48 @@ def score_sequence(
         else np.zeros(starts.size, dtype=bool)
     )
 
-    cols = [
-        "t_end", "regime", "status", "window_flag",
-        "score_Q_time", "score_Q_space", "score_T2_time", "score_T2_space",
-        "reason_codes",
-    ]
-    if starts.size == 0:
-        # Aucun point surveillable (ex. canal dégénéré) : journal vide bien typé.
-        empty = pd.DataFrame(columns=cols).set_index("t_end")
-        empty.index = pd.DatetimeIndex([], name="t_end")
-        return empty
+    return _empty_log() if starts.size == 0 else _replay(starts, regs, trans, vals, wi.t, timestamps, models, params)
 
+
+_LOG_COLS = [
+    "t_end", "regime", "status", "window_flag",
+    "score_Q_time", "score_Q_space", "score_T2_time", "score_T2_space",
+    "reason_codes",
+]
+
+
+def _empty_log() -> pd.DataFrame:
+    """Journal vide bien typé (cas 0 fenêtre, ex. canal dégénéré)."""
+    empty = pd.DataFrame(columns=_LOG_COLS).set_index("t_end")
+    empty.index = pd.DatetimeIndex([], name="t_end")
+    return empty
+
+
+def _finalize_log(rows: list[dict]) -> pd.DataFrame:
+    """Construit le journal en garantissant toutes les colonnes (score_* inclus).
+
+    Certaines fenêtres (transition / régime non modélisé) n'ont pas de scores ;
+    les colonnes manquantes sont ajoutées en NaN pour un schéma stable.
+    """
+    if not rows:
+        return _empty_log()
+    df = pd.DataFrame(rows)
+    for col in _LOG_COLS:
+        if col not in df.columns:
+            df[col] = np.nan
+    return df[_LOG_COLS].set_index("t_end")
+
+
+def _replay(starts, regs, trans, vals, t, timestamps, models, params):
+    """Boucle de scoring d'une liste de fenêtres scorables (ordre chronologique)."""
     ps = PersistenceState(params)
     rows = []
     for s, r, tr in zip(starts, regs, trans):
-        A = vals[s : s + wi.t]
+        A = vals[s : s + t]
         res = score_online(A, models, int(r), bool(tr), ps)
         rows.append(
             {
-                "t_end": timestamps[s + wi.t - 1],
+                "t_end": timestamps[s + t - 1],
                 "regime": int(r),
                 "status": res.status,
                 "window_flag": res.window_flag,
@@ -79,7 +106,88 @@ def score_sequence(
                 "reason_codes": ",".join(res.reason_codes),
             }
         )
-    return pd.DataFrame(rows).set_index("t_end")
+    return _finalize_log(rows)
+
+
+def replay_grid(
+    vals: np.ndarray,
+    regime: pd.Series,
+    monitorable: pd.Series,
+    timestamps: pd.DatetimeIndex,
+    models: dict[int, RegimeModel],
+    insufficient_regimes: set[int] | frozenset[int],
+    params: Params = config.DEFAULT_PARAMS,
+    stride: int | None = None,
+) -> pd.DataFrame:
+    """Rejeu online sur **toute** la grille : chaque fenêtre est classifiée.
+
+    Une fenêtre de longueur ``t`` au pas ``stride`` est :
+    - ``transition`` si elle chevauche un point non surveillable ou deux régimes ;
+    - ``insufficient_data`` si son régime est connu mais exclu (sous-peuplé) ;
+    - ``unknown_regime`` si son régime n'a pas de modèle ni de label connu ;
+    - sinon scorée (``normal`` / ``warning`` / ``alert``).
+
+    Permet de compter scorés vs non-scorés sans toucher à la méthode Bi2DPCA.
+    """
+    reg = regime.to_numpy()
+    mon = monitorable.to_numpy()
+    t = params.t
+    stride = stride or params.stride
+    n = len(reg)
+    insufficient_regimes = set(insufficient_regimes)
+
+    ps = PersistenceState(params)
+    rows = []
+    for s in range(0, n - t + 1, stride):
+        sl_reg = reg[s : s + t]
+        sl_mon = mon[s : s + t]
+        end_ts = timestamps[s + t - 1]
+        r0 = int(sl_reg[0])
+
+        # Non scorable : chevauche un trou/arrêt/transition ou deux régimes.
+        if (not sl_mon.all()) or r0 < 0 or bool((sl_reg != sl_reg[0]).any()):
+            ps.reset()
+            rows.append(
+                {"t_end": end_ts, "regime": r0, "status": "transition",
+                 "window_flag": False, "reason_codes": "transition_regime"}
+            )
+            continue
+
+        res = score_online(
+            vals[s : s + t], models, r0, False, ps, insufficient_regimes
+        )
+        if res.status not in SCORED_STATUSES:
+            ps.reset()
+        rows.append(
+            {
+                "t_end": end_ts,
+                "regime": r0,
+                "status": res.status,
+                "window_flag": res.window_flag,
+                **{f"score_{k}": v for k, v in res.scores.items()},
+                "reason_codes": ",".join(res.reason_codes),
+            }
+        )
+
+    return _finalize_log(rows)
+
+
+def status_summary(scored: pd.DataFrame) -> dict:
+    """Compteurs scorés / non-scorés à partir d'un journal de statuts."""
+    counts = scored["status"].value_counts().to_dict() if len(scored) else {}
+    n_scored = sum(counts.get(s, 0) for s in SCORED_STATUSES)
+    n_non = sum(counts.get(s, 0) for s in NON_SCORED_STATUSES)
+    return {
+        "status_counts": {k: int(v) for k, v in counts.items()},
+        "n_normal": int(counts.get("normal", 0)),
+        "n_warning": int(counts.get("warning", 0)),
+        "n_alert": int(counts.get("alert", 0)),
+        "n_transition": int(counts.get("transition", 0)),
+        "n_unknown_regime": int(counts.get("unknown_regime", 0)),
+        "n_insufficient_data": int(counts.get("insufficient_data", 0)),
+        "n_scored_total": int(n_scored),
+        "n_non_scored_total": int(n_non),
+    }
 
 
 # --------------------------------------------------------------------------- #

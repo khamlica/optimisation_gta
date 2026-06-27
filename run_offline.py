@@ -30,11 +30,21 @@ from bi2dpca import (
 )
 
 
-def train_gta(gta_id: str, data_path: str, params: config.Params, out_dir: str) -> dict:
-    """Entraîne tous les régimes d'un GTA et écrit le bundle + diagnostics."""
+def train_gta(
+    gta_id: str,
+    data_path: str,
+    params: config.Params,
+    out_dir: str,
+    exclude_vars: tuple[str, ...] = (),
+) -> dict:
+    """Entraîne tous les régimes d'un GTA et écrit le bundle + diagnostics.
+
+    ``exclude_vars`` permet d'écarter une variable (ex. MP) pour un test de
+    sensibilité, sans modifier la méthode.
+    """
     os.makedirs(out_dir, exist_ok=True)
 
-    data = io_data.load_gta(data_path, gta_id)
+    data = io_data.load_gta(data_path, gta_id, exclude_vars=exclude_vars)
     pre = preprocessing.preprocess(data, params)
     reg = regimes.identify_regimes(pre, params)
     mon = windows.monitorable_mask(pre, reg, params)
@@ -82,14 +92,17 @@ def train_gta(gta_id: str, data_path: str, params: config.Params, out_dir: str) 
     )
 
     # Sérialisation du bundle (tout ce qu'il faut pour le scoring online).
+    regimes_insufficient = sorted(r for r, s in regime_status.items() if s == "insufficient_data")
     bundle = {
         "gta_id": gta_id,
         "variables": data.variables,
+        "exclude_vars": list(exclude_vars),
         "params": params,
         "regime_model": reg.model,
         "regime_scaler": reg.scaler,
         "regime_vars": reg.regime_vars,
         "n_regimes": reg.n_regimes,
+        "regimes_insufficient": regimes_insufficient,
         "models": models,
     }
     bundle_path = os.path.join(out_dir, "bundle.pkl")
@@ -136,7 +149,6 @@ def train_gta(gta_id: str, data_path: str, params: config.Params, out_dir: str) 
     summary = pd.DataFrame(rows)
     summary.to_csv(os.path.join(out_dir, "regime_summary.csv"), index=False)
 
-    regimes_insufficient = sorted(r for r, s in regime_status.items() if s == "insufficient_data")
     metrics = {
         "gta_id": gta_id,
         "n_points": pre.report["n_points"],
@@ -191,8 +203,14 @@ def main() -> None:
         default=None,
         help="Répertoire de sortie (défaut: artifacts/<GTA>). Ignoré si --gta all.",
     )
+    ap.add_argument(
+        "--exclude",
+        default="",
+        help="Variables canoniques à écarter, séparées par virgule (ex. MP). Diagnostic.",
+    )
     args = ap.parse_args()
 
+    exclude_vars = tuple(v.strip() for v in args.exclude.split(",") if v.strip())
     gtas = sorted(config.GTA_CONFIGS) if args.gta == "all" else [args.gta]
     for gta in gtas:
         data_path = (
@@ -205,9 +223,9 @@ def main() -> None:
             if (args.out and args.gta != "all")
             else os.path.join("artifacts", gta)
         )
-        print(f"\n===== OFFLINE {gta}  (source: {data_path}) =====")
+        print(f"\n===== OFFLINE {gta}  (source: {data_path}, exclude={exclude_vars}) =====")
         try:
-            train_gta(gta, data_path, config.DEFAULT_PARAMS, out_dir)
+            train_gta(gta, data_path, config.DEFAULT_PARAMS, out_dir, exclude_vars=exclude_vars)
         except Exception as exc:  # noqa: BLE001 - on poursuit les autres GTA
             print(f"[ERREUR] {gta}: {exc}")
 
