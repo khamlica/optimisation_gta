@@ -114,3 +114,5 @@ Les alertes du régime 2 prolongent le signal déjà observé à l’étape 5 :
 
 Ce point n’est pas traité comme bug.
 Il sera analysé à l’étape validation.
+
+À noter : FAR_calib JFC3 = 1,76 % (légèrement > cible 1 %), avec un seul régime modélisé (les 4 autres sous-peuplés exclus) — conséquence attendue du gating, non recalibré. Rien n'a été co
