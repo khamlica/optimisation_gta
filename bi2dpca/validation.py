@@ -53,6 +53,17 @@ def score_sequence(
         else np.zeros(starts.size, dtype=bool)
     )
 
+    cols = [
+        "t_end", "regime", "status", "window_flag",
+        "score_Q_time", "score_Q_space", "score_T2_time", "score_T2_space",
+        "reason_codes",
+    ]
+    if starts.size == 0:
+        # Aucun point surveillable (ex. canal dégénéré) : journal vide bien typé.
+        empty = pd.DataFrame(columns=cols).set_index("t_end")
+        empty.index = pd.DatetimeIndex([], name="t_end")
+        return empty
+
     ps = PersistenceState(params)
     rows = []
     for s, r, tr in zip(starts, regs, trans):

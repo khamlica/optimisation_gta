@@ -139,14 +139,40 @@ def train_gta(gta_id: str, data_path: str, params: config.Params, out_dir: str) 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Entraînement offline Bi2DPCA par régime.")
-    ap.add_argument("--gta", default="JFC1", help="Identifiant GTA (ex. JFC1)")
-    ap.add_argument("--data", default=None, help="Chemin CSV (défaut: data/Data_Energie_<GTA>.csv)")
-    ap.add_argument("--out", default=None, help="Répertoire de sortie (défaut: artifacts/<GTA>)")
+    ap.add_argument(
+        "--gta",
+        default="JFC1",
+        help="Identifiant GTA (ex. JFC1) ou 'all' pour les 4 GTA",
+    )
+    ap.add_argument(
+        "--data",
+        default=None,
+        help="Chemin CSV (défaut: résolu automatiquement par GTA). Ignoré si --gta all.",
+    )
+    ap.add_argument(
+        "--out",
+        default=None,
+        help="Répertoire de sortie (défaut: artifacts/<GTA>). Ignoré si --gta all.",
+    )
     args = ap.parse_args()
 
-    data_path = args.data or f"data/Data_Energie_{args.gta}.csv"
-    out_dir = args.out or os.path.join("artifacts", args.gta)
-    train_gta(args.gta, data_path, config.DEFAULT_PARAMS, out_dir)
+    gtas = sorted(config.GTA_CONFIGS) if args.gta == "all" else [args.gta]
+    for gta in gtas:
+        data_path = (
+            args.data
+            if (args.data and args.gta != "all")
+            else io_data.resolve_data_path(gta)
+        )
+        out_dir = (
+            args.out
+            if (args.out and args.gta != "all")
+            else os.path.join("artifacts", gta)
+        )
+        print(f"\n===== OFFLINE {gta}  (source: {data_path}) =====")
+        try:
+            train_gta(gta, data_path, config.DEFAULT_PARAMS, out_dir)
+        except Exception as exc:  # noqa: BLE001 - on poursuit les autres GTA
+            print(f"[ERREUR] {gta}: {exc}")
 
 
 if __name__ == "__main__":

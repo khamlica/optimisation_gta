@@ -17,6 +17,7 @@ import os
 import pickle
 
 import numpy as np
+import pandas as pd
 
 from bi2dpca import (
     config,
@@ -113,16 +114,73 @@ def replay_gta(gta_id: str, data_path: str, out_dir: str) -> dict:
     return report
 
 
+def build_summary(gtas: list[str], base_dir: str, out_csv: str) -> str:
+    """Assemble le rapport comparatif par GTA (offline metrics + online counts)."""
+    rows = []
+    for gta in gtas:
+        gdir = os.path.join(base_dir, gta)
+        metrics_path = os.path.join(gdir, "metrics.json")
+        report_path = os.path.join(gdir, "online_report.json")
+        if not (os.path.exists(metrics_path) and os.path.exists(report_path)):
+            print(f"[summary] {gta}: artefacts manquants, ignoré")
+            continue
+        with open(metrics_path) as f:
+            m = json.load(f)
+        with open(report_path) as f:
+            rep = json.load(f)
+        sc = rep.get("status_counts", {})
+        rows.append(
+            {
+                "gta_id": gta,
+                "exploitable_pct": m.get("pct_exploitable"),
+                "monitorable_pct": m.get("pct_monitorable"),
+                "n_regimes": m.get("n_regimes"),
+                "n_windows": m.get("n_windows"),
+                "FAR_calib_global": m.get("far_calib_global"),
+                "n_normal": sc.get("normal", 0),
+                "n_warning": sc.get("warning", 0),
+                "n_alert": sc.get("alert", 0),
+            }
+        )
+    df = pd.DataFrame(rows)
+    df.to_csv(out_csv, index=False)
+    print(f"\n===== RAPPORT COMPARATIF ({out_csv}) =====")
+    print(df.to_string(index=False))
+    return out_csv
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Rejeu online Bi2DPCA par régime.")
-    ap.add_argument("--gta", default="JFC1")
-    ap.add_argument("--data", default=None)
-    ap.add_argument("--out", default=None)
+    ap.add_argument("--gta", default="JFC1", help="Identifiant GTA ou 'all'")
+    ap.add_argument("--data", default=None, help="Ignoré si --gta all")
+    ap.add_argument("--out", default=None, help="Ignoré si --gta all")
+    ap.add_argument(
+        "--summary",
+        default="summary_all_gta.csv",
+        help="Chemin du rapport comparatif (mode all)",
+    )
     args = ap.parse_args()
 
-    data_path = args.data or f"data/Data_Energie_{args.gta}.csv"
-    out_dir = args.out or os.path.join("artifacts", args.gta)
-    replay_gta(args.gta, data_path, out_dir)
+    gtas = sorted(config.GTA_CONFIGS) if args.gta == "all" else [args.gta]
+    for gta in gtas:
+        data_path = (
+            args.data
+            if (args.data and args.gta != "all")
+            else io_data.resolve_data_path(gta)
+        )
+        out_dir = (
+            args.out
+            if (args.out and args.gta != "all")
+            else os.path.join("artifacts", gta)
+        )
+        print(f"\n===== ONLINE {gta}  (source: {data_path}) =====")
+        try:
+            replay_gta(gta, data_path, out_dir)
+        except Exception as exc:  # noqa: BLE001 - on poursuit les autres GTA
+            print(f"[ERREUR] {gta}: {exc}")
+
+    if args.gta == "all":
+        build_summary(gtas, "artifacts", args.summary)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,5 @@
+gta_id,exploitable_pct,monitorable_pct,n_regimes,n_windows,FAR_calib_global,n_normal,n_warning,n_alert
+JFC1,99.71,71.53,5,1829,0.0476,1679,103,47
+JFC2,73.68,54.88,5,1033,0.0588,908,111,14
+JFC3,4.67,0.04,5,0,,0,0,0
+JFC4,99.93,67.33,5,1304,0.0359,1207,83,14

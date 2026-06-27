@@ -1,0 +1,18 @@
+{
+  "gta_id": "JFC2",
+  "n_points": 17373,
+  "pct_exploitable": 73.68,
+  "pct_monitorable": 54.88,
+  "n_windows": 1033,
+  "n_regimes": 5,
+  "regimes_modeled": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "far_calib_global": 0.0588,
+  "far_test_global": 0.2138,
+  "scores_finite_test": true,
+  "bundle": "artifacts/JFC2/bundle.pkl"
+}
