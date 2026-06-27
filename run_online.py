@@ -146,6 +146,8 @@ def build_summary(
         rows.append(
             {
                 "gta_id": gta,
+                "exclude_vars": ";".join(m.get("exclude_vars", [])),
+                "exclude_reason": m.get("exclude_reason", ""),
                 "exploitable_pct": m.get("pct_exploitable"),
                 "monitorable_pct": m.get("pct_monitorable"),
                 "n_regimes": m.get("n_regimes"),

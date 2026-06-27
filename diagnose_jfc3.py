@@ -129,14 +129,18 @@ def main() -> None:
     print("\n=== Impact MP ===")
     print(json.dumps(mp_impact, indent=2, ensure_ascii=False))
 
-    # --- 3) Pipeline complet JFC3 SANS MP ---
+    # --- 3) Pipelines complets dédiés (indépendants de la config par défaut) ---
+    out_withmp = os.path.join("artifacts", f"{GTA}_withMP")
     out_nomp = os.path.join("artifacts", f"{GTA}_noMP")
+    print(f"\n===== PIPELINE {GTA} AVEC MP -> {out_withmp} =====")
+    run_offline.train_gta(GTA, data_path, params, out_withmp, exclude_vars=())
+    run_online.replay_gta(GTA, data_path, out_withmp)
     print(f"\n===== PIPELINE {GTA} SANS MP -> {out_nomp} =====")
     run_offline.train_gta(GTA, data_path, params, out_nomp, exclude_vars=("MP",))
     run_online.replay_gta(GTA, data_path, out_nomp)
 
     # --- 4) Comparaison avec MP vs sans MP ---
-    with_mp_art = _read_artifacts(os.path.join("artifacts", GTA))
+    with_mp_art = _read_artifacts(out_withmp)
     without_mp_art = _read_artifacts(out_nomp)
     comp = pd.DataFrame(
         [{"variante": "avec_MP", **with_mp_art}, {"variante": "sans_MP", **without_mp_art}]

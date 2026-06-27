@@ -5,6 +5,13 @@
   "pct_monitorable": 71.53,
   "n_windows": 1829,
   "n_regimes": 5,
+  "variables": [
+    "HP",
+    "BP",
+    "EE"
+  ],
+  "exclude_vars": [],
+  "exclude_reason": "",
   "regimes_modeled": [
     0,
     2,

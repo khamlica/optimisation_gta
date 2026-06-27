@@ -93,10 +93,12 @@ def train_gta(
 
     # Sérialisation du bundle (tout ce qu'il faut pour le scoring online).
     regimes_insufficient = sorted(r for r, s in regime_status.items() if s == "insufficient_data")
+    exclude_reason = config.exclude_reason_for(gta_id) if exclude_vars else ""
     bundle = {
         "gta_id": gta_id,
         "variables": data.variables,
         "exclude_vars": list(exclude_vars),
+        "exclude_reason": exclude_reason,
         "params": params,
         "regime_model": reg.model,
         "regime_scaler": reg.scaler,
@@ -156,6 +158,9 @@ def train_gta(
         "pct_monitorable": round(100 * float(mon.mean()), 2),
         "n_windows": len(wi),
         "n_regimes": reg.n_regimes,
+        "variables": data.variables,
+        "exclude_vars": list(exclude_vars),
+        "exclude_reason": exclude_reason,
         "regimes_modeled": sorted(models),
         "regimes_insufficient": regimes_insufficient,
         "far_calib_global": round(far_calib["far_global"], 4) if far_calib["n_total"] else None,
@@ -186,6 +191,15 @@ def train_gta(
     return metrics
 
 
+def _parse_manual_exclude(raw: str | None) -> tuple[str, ...] | None:
+    """Interprète --exclude : None=config par GTA, 'none'=rien, sinon liste."""
+    if raw is None:
+        return None
+    if raw.strip().lower() == "none":
+        return ()
+    return tuple(v.strip() for v in raw.split(",") if v.strip())
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Entraînement offline Bi2DPCA par régime.")
     ap.add_argument(
@@ -205,12 +219,15 @@ def main() -> None:
     )
     ap.add_argument(
         "--exclude",
-        default="",
-        help="Variables canoniques à écarter, séparées par virgule (ex. MP). Diagnostic.",
+        default=None,
+        help=(
+            "Surcharge manuelle des variables à écarter (ex. MP). Si absent, "
+            "applique config.GTA_EXCLUDE_VARS. Utiliser 'none' pour ne rien écarter."
+        ),
     )
     args = ap.parse_args()
 
-    exclude_vars = tuple(v.strip() for v in args.exclude.split(",") if v.strip())
+    manual_exclude = _parse_manual_exclude(args.exclude)
     gtas = sorted(config.GTA_CONFIGS) if args.gta == "all" else [args.gta]
     for gta in gtas:
         data_path = (
@@ -223,6 +240,7 @@ def main() -> None:
             if (args.out and args.gta != "all")
             else os.path.join("artifacts", gta)
         )
+        exclude_vars = manual_exclude if manual_exclude is not None else config.exclude_vars_for(gta)
         print(f"\n===== OFFLINE {gta}  (source: {data_path}, exclude={exclude_vars}) =====")
         try:
             train_gta(gta, data_path, config.DEFAULT_PARAMS, out_dir, exclude_vars=exclude_vars)

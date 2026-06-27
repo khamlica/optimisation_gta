@@ -47,6 +47,29 @@ GTA_CONFIGS: dict[str, dict[str, str]] = {
 # Nom de la colonne d'horodatage dans les CSV bruts.
 DATE_COLUMN: str = "Date"
 
+# Exclusion explicite de variables par GTA (décision V1, documentée).
+# JFC3 : MP est un canal dégénéré (quasi constant à ~0, voir
+# artifacts/JFC3/diagnostic_mp.json) qui rend le GTA non surveillable. On
+# l'écarte explicitement plutôt que par une règle automatique générique.
+GTA_EXCLUDE_VARS: dict[str, tuple[str, ...]] = {
+    "JFC3": ("MP",),
+}
+
+# Justification associée (sérialisée dans les artefacts).
+GTA_EXCLUDE_REASON: dict[str, str] = {
+    "JFC3": "MP excluded for JFC3 because diagnostic shows quasi-constant/degenerated channel",
+}
+
+
+def exclude_vars_for(gta_id: str) -> tuple[str, ...]:
+    """Variables à écarter par défaut pour un GTA (config V1)."""
+    return GTA_EXCLUDE_VARS.get(gta_id, ())
+
+
+def exclude_reason_for(gta_id: str) -> str:
+    """Justification de l'exclusion par défaut pour un GTA (vide si aucune)."""
+    return GTA_EXCLUDE_REASON.get(gta_id, "")
+
 
 # --------------------------------------------------------------------------- #
 # Paramètres de méthode (réglages par défaut, surchargables)
