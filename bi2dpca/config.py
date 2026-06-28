@@ -184,6 +184,14 @@ class Params:
     energetic_ref_frac: float = 0.55   # repli si aucune date de référence par GTA
     energetic_band_k: float = 2.0      # bande de contrôle = ± k * écart-type réf
 
+    # Traceur dynamique invariant au niveau (couche 2a) : features de dynamique
+    # locale (volatilité, autocorr lag-1, couplages d'incréments) suivies dans le
+    # temps. INDICATIF UNIQUEMENT : la bande est une zone de référence visuelle,
+    # PAS une limite de contrôle (pas de modèle de dépendance ni d'étude ARL/FAR
+    # sous autocorrélation) ; aucun statut warning/alert n'en est dérivé.
+    dynamic_roll_window: int = 96      # fenêtre glissante des features (~1 j à 15 min)
+    dynamic_band_k: float = 3.0        # demi-largeur zone de référence = k * IQR réf
+
     @property
     def t(self) -> int:
         """Nombre de points temporels par fenêtre 2D."""

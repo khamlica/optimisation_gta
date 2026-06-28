@@ -278,6 +278,58 @@ def energetic_figure(resid: pd.DataFrame, band: float, ref_end: str | None = Non
     return fig
 
 
+_DYN_LABELS = {
+    "vol_dHP": "Volatilité ΔHP", "vol_dBP": "Volatilité ΔBP",
+    "vol_dEE": "Volatilité ΔEE", "vol_resid": "Volatilité résidu EE",
+    "ac1_resid": "Autocorr lag-1 résidu", "coup_dHP_dEE": "Couplage ΔHP–ΔEE",
+    "coup_dBP_dEE": "Couplage ΔBP–ΔEE", "coup_dHP_dresid": "Couplage ΔHP–Δrésidu",
+}
+
+
+def dynamic_figure(feats: pd.DataFrame, meta: dict) -> go.Figure:
+    """Traceur dynamique invariant au niveau : une feature par sous-graphe.
+
+    INDICATIF. La zone verte est une **référence visuelle** (médiane ± k·IQR sur
+    le sain), PAS une limite de contrôle ; les points hors zone sont juste
+    marqués (« hors zone de référence »), aucune alerte n'en découle.
+    """
+    band = meta.get("band", {})
+    cols = [c for c in feats.columns if c in band]
+    n = len(cols)
+    titles = [_DYN_LABELS.get(c, c) for c in cols]
+    fig = make_subplots(rows=max(1, n), cols=1, shared_xaxes=True,
+                        vertical_spacing=0.03, subplot_titles=titles)
+    for i, c in enumerate(cols, start=1):
+        b = band[c]
+        s = feats[c]
+        if np.isfinite(b.get("lo", np.nan)) and np.isfinite(b.get("hi", np.nan)):
+            fig.add_hrect(y0=b["lo"], y1=b["hi"], fillcolor="#2ca02c", opacity=0.10,
+                          line_width=0, row=i, col=1)
+            fig.add_hline(y=b["med"], line=dict(color="#2ca02c", width=1, dash="dash"),
+                          row=i, col=1)
+            out = (s < b["lo"]) | (s > b["hi"])
+        else:
+            out = pd.Series(False, index=s.index)
+        fig.add_trace(go.Scattergl(
+            x=s.index, y=s, mode="lines", line=dict(color="#1f77b4", width=1),
+            name=_DYN_LABELS.get(c, c), showlegend=False,
+            hovertemplate="%{x}<br>" + _DYN_LABELS.get(c, c) + "=%{y:.3f}<extra></extra>",
+        ), row=i, col=1)
+        if out.any():
+            fig.add_trace(go.Scattergl(
+                x=s.index[out], y=s[out], mode="markers",
+                marker=dict(color="#7f7f7f", size=3), name="hors zone de référence",
+                showlegend=(i == 1),
+                hovertemplate="%{x}<br>hors zone : %{y:.3f}<extra></extra>",
+            ), row=i, col=1)
+    fig.update_layout(
+        height=140 * max(1, n), margin=dict(l=60, r=20, t=30, b=30),
+        legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
+        hovermode="x unified",
+    )
+    return fig
+
+
 def status_stacked_bar(summary: pd.DataFrame) -> go.Figure:
     """Barres horizontales empilées des statuts par GTA."""
     fig = go.Figure()

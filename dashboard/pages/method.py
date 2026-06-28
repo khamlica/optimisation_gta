@@ -39,9 +39,21 @@ def render() -> None:
             "avec persistance.**"
         )
         st.info(
-            "`EE` est une variable **surveillée, jamais prédite**. Les alertes "
-            "proviennent d'une **rupture de structure** mesurée par `Q_time` "
-            "(autocorrélation temporelle) et `Q_space` (structure multivariable)."
+            "`EE` est une variable **surveillée, jamais prédite**. À 15 min, les "
+            "indices `Q_time`/`Q_space` mesurent surtout un **écart à la baseline "
+            "multivariable du régime** (mélange structure croisée + niveau de "
+            "fonctionnement), **pas** une micro-dynamique locale pure : un "
+            "déplacement de point de fonctionnement (rendement) les fait réagir."
+        )
+        st.markdown(
+            "**Triptyque de surveillance** (rôles séparés) :\n"
+            "1. **Performance statique** — cross-check énergétique `EE=f(HP,BP,MP)` "
+            "(robuste, non masquable) ;\n"
+            "2. **Dynamique locale** — traceur invariant au niveau (volatilité, "
+            "autocorr, couplages d'incréments) — *indicatif* ;\n"
+            "3. **Écart à la baseline du régime** — Bi2DPCA `Q_time`/`Q_space` "
+            "(sensible, précoce, mais sensible au déplacement de point de "
+            "fonctionnement)."
         )
         try:
             st.markdown(_FLOW)
