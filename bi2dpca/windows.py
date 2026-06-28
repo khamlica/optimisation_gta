@@ -16,8 +16,12 @@ import pandas as pd
 
 from . import config
 from .config import Params
-from .preprocessing import PreprocessResult
+from .preprocessing import PreprocessResult, stop_mask
 from .regimes import RegimeResult
+
+# ``stop_mask`` est défini dans ``preprocessing`` (état de la donnée, sans
+# dépendance aux régimes) et ré-exporté ici pour compatibilité ascendante.
+__all__ = ["stop_mask", "monitorable_mask", "enumerate_windows", "extract_windows"]
 
 
 @dataclass
@@ -35,28 +39,6 @@ class WindowIndex:
         """Positions de départ des fenêtres d'un régime, triées chronologiquement."""
         sel = self.starts[self.regime == regime_id]
         return np.sort(sel)
-
-
-def stop_mask(
-    pre: PreprocessResult, params: Params = config.DEFAULT_PARAMS
-) -> pd.Series:
-    """``True`` aux pas où la machine est à l'arrêt (charge quasi nulle).
-
-    Le seuil est relatif à la médiane opérationnelle de chaque variable de
-    charge (par défaut ``EE``), estimée sur les pas exploitables non nuls.
-    """
-    stop = pd.Series(False, index=pre.df.index)
-    for v in params.stop_vars:
-        if v not in pre.variables:
-            continue
-        s = pre.df[v]
-        operating = s[pre.exploitable & (s > 0)]
-        if operating.empty:
-            continue
-        thr = params.stop_frac * float(operating.median())
-        stop |= s < thr
-    stop.name = "stop"
-    return stop
 
 
 def monitorable_mask(

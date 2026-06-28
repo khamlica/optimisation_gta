@@ -178,3 +178,28 @@ def preprocess(data: GtaData, params: Params = config.DEFAULT_PARAMS) -> Preproc
         ranges=ranges,
         report=report,
     )
+
+
+def stop_mask(
+    pre: PreprocessResult, params: Params = config.DEFAULT_PARAMS
+) -> pd.Series:
+    """``True`` aux pas où la machine est à l'arrêt (charge quasi nulle).
+
+    Le seuil est relatif à la médiane opérationnelle de chaque variable de
+    charge (par défaut ``EE``), estimée sur les pas exploitables non nuls.
+
+    L'arrêt est un état « machine non surveillée » : il est exclu du fenêtrage,
+    du jeu sain ET du clustering des régimes (sinon il forme un faux régime).
+    """
+    stop = pd.Series(False, index=pre.df.index)
+    for v in params.stop_vars:
+        if v not in pre.variables:
+            continue
+        s = pre.df[v]
+        operating = s[pre.exploitable & (s > 0)]
+        if operating.empty:
+            continue
+        thr = params.stop_frac * float(operating.median())
+        stop |= s < thr
+    stop.name = "stop"
+    return stop

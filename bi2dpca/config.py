@@ -124,6 +124,11 @@ class Params:
     regime_label_smooth_window: int = 8  # lissage majoritaire des labels (anti-papillotement)
     regime_random_state: int = 0
     regime_min_fit_points: int = 50    # garde-fou : minimum de points exploitables pour entraîner le GMM
+    # Marge de transition exclue APRÈS chaque changement de régime, en pas.
+    # Découplée de t : le non-chevauchement des fenêtres est déjà garanti par
+    # enumerate_windows ; cette marge ne sert qu'à écarter la rampe de
+    # stabilisation du nouveau régime. 2 pas = 30 min (cf. décision V1).
+    transition_steps: int = 2
 
     # Préfiltrage
     long_gap_steps: int = 4            # un trou > N pas consécutifs = trou long

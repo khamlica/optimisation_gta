@@ -21,7 +21,7 @@ from sklearn.preprocessing import StandardScaler
 
 from . import config
 from .config import Params
-from .preprocessing import PreprocessResult
+from .preprocessing import PreprocessResult, stop_mask
 
 
 @dataclass
@@ -122,19 +122,22 @@ def _smooth_labels(labels: pd.Series, window: int) -> pd.Series:
     return pd.Series(out, index=labels.index)
 
 
-def _transition_mask(regime: pd.Series, t: int) -> pd.Series:
-    """Marque comme transition tout pas proche d'un changement de label.
+def _transition_mask(regime: pd.Series, span: int) -> pd.Series:
+    """Marque comme transition les ``span`` premiers pas de chaque nouveau régime.
 
-    Une fenêtre 2D de longueur ``t`` ne doit jamais chevaucher deux régimes :
-    on marque donc les ``t-1`` pas qui suivent un changement (la fenêtre se
-    terminant sur ces pas serait à cheval), ainsi que les pas non labellisés.
+    Le non-chevauchement des fenêtres 2D entre deux régimes est déjà garanti par
+    ``enumerate_windows`` (qui s'arrête à chaque changement de label) : cette
+    marge ne sert donc qu'à écarter la **rampe de stabilisation** du nouveau
+    régime, dont la dynamique n'est pas encore représentative de l'état établi.
+    Les pas non labellisés (``-1`` : non exploitables ou à l'arrêt) sont aussi
+    marqués transition.
     """
     arr = regime.to_numpy()
     n = len(arr)
     trans = np.zeros(n, dtype=bool)
     trans |= arr < 0
     change_points = np.flatnonzero(np.diff(arr) != 0) + 1  # premiers pas après un changement
-    span = max(1, t - 1)
+    span = max(1, span)
     for cp in change_points:
         trans[cp : min(n, cp + span)] = True
     return pd.Series(trans, index=regime.index)
@@ -164,15 +167,17 @@ def assign_regimes(
         X_all = scaler.transform(feats.loc[score_mask].to_numpy())
         regime.loc[score_mask] = model.predict(X_all)
 
-    not_labelable = ~pre.exploitable
+    # Non labellisables : pas non exploitables OU à l'arrêt. L'arrêt est exclu
+    # des régimes (sinon il forme un faux régime « machine éteinte »).
+    not_labelable = (~pre.exploitable) | stop_mask(pre, params)
     regime.loc[not_labelable] = -1
     regime = _smooth_labels(regime, params.regime_label_smooth_window)
     # Re-forcer -1 après lissage : le vote majoritaire ne doit jamais
-    # « inventer » un régime sur un pas non exploitable.
+    # « inventer » un régime sur un pas non exploitable ou à l'arrêt.
     regime.loc[not_labelable] = -1
     regime.name = "regime"
 
-    transition = _transition_mask(regime, params.t)
+    transition = _transition_mask(regime, params.transition_steps)
     transition.name = "transition"
     return regime, transition
 
@@ -187,7 +192,9 @@ def identify_regimes(
     """
     feats, regime_vars = _regime_feature_frame(pre, params)
 
-    fit_mask = pre.exploitable & feats.notna().all(axis=1)
+    # Fit GMM uniquement sur les pas exploitables, HORS arrêt : l'arrêt n'est
+    # pas un régime de fonctionnement et fausserait les clusters/populations.
+    fit_mask = pre.exploitable & (~stop_mask(pre, params)) & feats.notna().all(axis=1)
     X_fit = feats.loc[fit_mask].to_numpy()
 
     # Garde-fou : refuser d'apprendre des régimes sur trop peu de points.
