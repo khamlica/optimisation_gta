@@ -1,28 +1,28 @@
 {
   "gta_id": "JFC3",
   "n_grid_windows": 17358,
-  "n_scorable_windows": 1513,
+  "n_scorable_windows": 1738,
   "status_counts": {
-    "normal": 7710,
-    "transition": 5688,
-    "insufficient_data": 2811,
-    "alert": 960,
-    "warning": 189
+    "normal": 8375,
+    "transition": 3976,
+    "insufficient_data": 3673,
+    "alert": 1097,
+    "warning": 237
   },
-  "n_normal": 7710,
-  "n_warning": 189,
-  "n_alert": 960,
-  "n_transition": 5688,
+  "n_normal": 8375,
+  "n_warning": 237,
+  "n_alert": 1097,
+  "n_transition": 3976,
   "n_unknown_regime": 0,
-  "n_insufficient_data": 2811,
-  "n_scored_total": 8859,
-  "n_non_scored_total": 8499,
+  "n_insufficient_data": 3673,
+  "n_scored_total": 9709,
+  "n_non_scored_total": 7649,
   "figure": "artifacts/JFC3/monitoring_online.png",
   "drift_injected": {
     "first_warning_window": 4,
     "first_alert_window": 8,
     "delay_minutes": 120,
-    "n_windows": 746,
+    "n_windows": 809,
     "regime": 0
   },
   "isolated_spike": {
