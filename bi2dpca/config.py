@@ -61,6 +61,22 @@ GTA_EXCLUDE_REASON: dict[str, str] = {
 }
 
 
+# Cross-check énergétique (V2) : fin de la période de référence ANCIENNE et
+# saine sur laquelle on apprend EE = f(HP, MP, BP). Spécifique par GTA : la
+# référence s'arrête AVANT l'évènement connu, pour que le résidu le révèle.
+ENERGETIC_REF_END: dict[str, str] = {
+    "JFC1": "2026-01-01",  # avant l'arrêt / maintenance de janvier 2026
+    "JFC2": "2025-04-01",  # avant la dérive d'avril
+    "JFC3": "2025-06-01",  # avant la dérive visible de juin
+    "JFC4": "2025-04-01",  # période ancienne stable
+}
+
+
+def energetic_ref_end(gta_id: str) -> str | None:
+    """Fin de la référence saine pour le cross-check énergétique (None si absent)."""
+    return ENERGETIC_REF_END.get(gta_id)
+
+
 def exclude_vars_for(gta_id: str) -> tuple[str, ...]:
     """Variables à écarter par défaut pour un GTA (config V1)."""
     return GTA_EXCLUDE_VARS.get(gta_id, ())
@@ -163,6 +179,10 @@ class Params:
     # Nettoyage robuste du jeu sain (médiane + k * IQR sur les scores Q)
     healthy_iqr_k: float = 3.0
     healthy_clean_iters: int = 2
+
+    # Cross-check énergétique (V2) : EE = f(HP, MP, BP) sur une référence saine.
+    energetic_ref_frac: float = 0.55   # repli si aucune date de référence par GTA
+    energetic_band_k: float = 2.0      # bande de contrôle = ± k * écart-type réf
 
     @property
     def t(self) -> int:

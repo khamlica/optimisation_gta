@@ -234,6 +234,50 @@ def physical_figure(
     return fig
 
 
+def energetic_figure(resid: pd.DataFrame, band: float, ref_end: str | None = None) -> go.Figure:
+    """Résidu énergétique EE (%) dans le temps + bande de contrôle saine.
+
+    Points dans la bande en gris, hors bande en rouge ; médiane glissante 1 jour
+    pour la tendance ; trait vertical = fin de la période de référence.
+    """
+    fig = go.Figure()
+    r = resid["resid_pct"]
+    if band and np.isfinite(band):
+        fig.add_hrect(y0=-band, y1=band, fillcolor="#2ca02c", opacity=0.10, line_width=0)
+    fig.add_hline(y=0, line=dict(color="#2ca02c", width=1, dash="dash"))
+
+    inb = r.abs() <= band if band and np.isfinite(band) else pd.Series(True, index=r.index)
+    fig.add_trace(go.Scattergl(
+        x=r.index[inb], y=r[inb], mode="markers",
+        marker=dict(size=3, color="#7f7f7f"), name="dans la bande",
+        hovertemplate="%{x}<br>résidu %{y:+.1f}%<extra></extra>",
+    ))
+    fig.add_trace(go.Scattergl(
+        x=r.index[~inb], y=r[~inb], mode="markers",
+        marker=dict(size=3, color="#d62728"), name="hors bande",
+        hovertemplate="%{x}<br>résidu %{y:+.1f}%<extra></extra>",
+    ))
+    roll = r.rolling(96, min_periods=12, center=True).median()
+    fig.add_trace(go.Scattergl(
+        x=roll.index, y=roll, mode="lines",
+        line=dict(color="black", width=1.6), name="médiane glissante 1 j",
+        hovertemplate="%{x}<br>tendance %{y:+.1f}%<extra></extra>",
+    ))
+    if ref_end:
+        try:
+            fig.add_vline(x=pd.Timestamp(ref_end), line=dict(color="#1f77b4", width=1, dash="dot"),
+                          annotation_text="fin référence", annotation_position="top left")
+        except Exception:  # noqa: BLE001 - annotation non bloquante
+            pass
+    fig.update_layout(
+        height=340, margin=dict(l=60, r=20, t=30, b=30),
+        yaxis_title="résidu EE (%)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        hovermode="x unified",
+    )
+    return fig
+
+
 def status_stacked_bar(summary: pd.DataFrame) -> go.Figure:
     """Barres horizontales empilées des statuts par GTA."""
     fig = go.Figure()

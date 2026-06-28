@@ -158,6 +158,37 @@ def _physical_view(gta: str, period: tuple | None) -> None:
         )
 
 
+def _energetic_view(gta: str) -> None:
+    """Panneau cross-check énergétique : résidu EE = f(HP,BP,MP) dans le temps."""
+    rf = readers.energetic_residual(gta)
+    if rf.empty:
+        st.info("Cross-check énergétique indisponible (`energetic_residual.csv`).")
+        return
+    meta = readers.energetic_meta(gta)
+    band = float(meta.get("band_k", 2.0)) * float(meta.get("ref_std_pct", 0.0))
+    inputs = meta.get("inputs", [])
+    ref_end = meta.get("ref_end")
+
+    recent = float(rf["resid_pct"].tail(96 * 7).median())  # ~7 derniers jours
+    c1, c2 = st.columns([1, 3])
+    c1.metric(
+        "Résidu récent (médiane 7 j)", f"{recent:+.1f} %",
+        help="EE réelle vs EE attendue. + = produit plus qu'attendu (gain) ; "
+             "− = moins (dégradation).",
+    )
+    c1.caption(f"EE = f({', '.join(inputs)})  ·  réf ≤ {ref_end}  ·  bande ±{band:.1f} %")
+    with c2:
+        st.plotly_chart(
+            charts.energetic_figure(rf, band, ref_end), width="stretch",
+            key=f"energetic_{gta}",
+        )
+    st.caption(
+        "Indicateur **global, indépendant des régimes** : une dérive de rendement "
+        "reste visible même si elle s'auto-masque dans un nouveau régime Bi2DPCA "
+        "(c'est le « biais persistant » d'un Kalman, en % d'EE)."
+    )
+
+
 def render() -> None:
     gta = _pick_gta()
     if gta is None:
@@ -201,6 +232,10 @@ def render() -> None:
     st.divider()
     st.subheader("Vue physique / interprétable")
     _physical_view(gta, period)
+
+    st.divider()
+    st.subheader("Cross-check énergétique (EE = f(HP, BP, MP))")
+    _energetic_view(gta)
 
     with st.expander("Figure offline de référence (image)"):
         p = readers.figure_path(gta, "monitoring_online.png")

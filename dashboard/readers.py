@@ -69,6 +69,21 @@ def online_report(gta: str) -> dict:
     return _read_json(ARTIFACTS_DIR / gta / "online_report.json")
 
 
+@st.cache_data(show_spinner=False, ttl=5)
+def energetic_residual(gta: str) -> pd.DataFrame:
+    """Résidu énergétique EE_réel − EE_attendu (energetic_residual.csv)."""
+    path = ARTIFACTS_DIR / gta / "energetic_residual.csv"
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path, parse_dates=[0], index_col=0)
+
+
+@st.cache_data(show_spinner=False)
+def energetic_meta(gta: str) -> dict:
+    """Coefficients / bande / référence du cross-check énergétique."""
+    return _read_json(ARTIFACTS_DIR / gta / "energetic.json")
+
+
 @st.cache_data(show_spinner=False)
 def metrics(gta: str) -> dict:
     return _read_json(ARTIFACTS_DIR / gta / "metrics.json")

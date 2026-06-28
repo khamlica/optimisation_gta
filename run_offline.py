@@ -20,6 +20,7 @@ import pandas as pd
 
 from bi2dpca import (
     config,
+    energetic,
     healthy,
     io_data,
     model as model_mod,
@@ -185,6 +186,24 @@ def train_gta(
         validation.plot_far_vs_quantile(
             cal_scores, os.path.join(out_dir, "far_vs_quantile.png")
         )
+
+    # Cross-check énergétique (V2) : EE = f(HP, MP, BP) sur réf saine -> résidu.
+    em = energetic.fit_energy_model(pre, params, ref_end=config.energetic_ref_end(gta_id))
+    if em is not None:
+        rf = energetic.residual_frame(pre, em, params)
+        rf.to_csv(os.path.join(out_dir, "energetic_residual.csv"))
+        with open(os.path.join(out_dir, "energetic.json"), "w") as f:
+            json.dump(
+                {
+                    "inputs": em.inputs,
+                    "coef": {k: float(c) for k, c in zip(em.inputs + ["const"], em.coef)},
+                    "ref_end": em.ref_end,
+                    "ref_std_pct": round(em.ref_std, 3),
+                    "n_ref": em.n_ref,
+                    "band_k": params.energetic_band_k,
+                },
+                f, indent=2, ensure_ascii=False,
+            )
 
     print(json.dumps(metrics, indent=2, ensure_ascii=False))
     print("\n", summary.to_string(index=False))
