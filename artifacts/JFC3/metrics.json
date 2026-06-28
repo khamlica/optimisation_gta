@@ -2,9 +2,9 @@
   "gta_id": "JFC3",
   "n_points": 17373,
   "pct_exploitable": 97.47,
-  "pct_monitorable": 94.49,
-  "n_windows": 1738,
-  "n_regimes": 5,
+  "pct_monitorable": 94.59,
+  "n_windows": 1761,
+  "n_regimes": 4,
   "variables": [
     "HP",
     "BP",
@@ -20,11 +20,10 @@
   "regimes_insufficient": [
     1,
     2,
-    3,
-    4
+    3
   ],
-  "far_calib_global": 0.0108,
-  "far_test_global": 0.5798,
+  "far_calib_global": 0.0152,
+  "far_test_global": 0.64,
   "scores_finite_test": true,
   "bundle": "artifacts/JFC3/bundle.pkl"
 }

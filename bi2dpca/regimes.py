@@ -74,14 +74,46 @@ def _regime_feature_frame(
     return feats, regime_vars
 
 
+def _elbow_k(grid: list[int], bics: dict[int, float], frac: float) -> int:
+    """Plus petit ``k`` au « coude » de la courbe BIC (parcimonie).
+
+    On ajoute des régimes tant que le gain marginal de BIC reste >= ``frac`` fois
+    le gain du tout premier ajout ; dès qu'il passe en dessous, on s'arrête. Si
+    le BIC ne s'améliore jamais (premier gain <= 0), on prend le plus petit k.
+    """
+    gains = {grid[i]: bics[grid[i - 1]] - bics[grid[i]] for i in range(1, len(grid))}
+    first_gain = gains[grid[1]]
+    if first_gain <= 0:
+        return grid[0]
+    threshold = frac * first_gain
+    chosen = grid[0]
+    for i in range(1, len(grid)):
+        if gains[grid[i]] >= threshold:
+            chosen = grid[i]
+        else:
+            break
+    return chosen
+
+
 def _select_gmm(
     X: np.ndarray, params: Params
 ) -> tuple[GaussianMixture, int, float]:
-    """Sélectionne le nombre de composantes par BIC sur la grille configurée."""
-    best_model: GaussianMixture | None = None
-    best_bic = np.inf
-    best_k = 0
-    for k in params.regime_n_components_grid:
+    """Sélectionne le nombre de régimes par BIC décorrélé + coude de parcimonie.
+
+    Chaque GMM est ajusté sur **toutes** les données ``X`` ; le BIC servant à la
+    sélection est en revanche évalué sur un sous-échantillon **décorrélé**
+    (1 point sur ``regime_bic_thin``) pour neutraliser l'autocorrélation qui,
+    sinon, pousse systématiquement vers le maximum de la grille.
+    """
+    grid = sorted(params.regime_n_components_grid)
+    thin = max(1, params.regime_bic_thin)
+    # Garde-fou : assez de points décorrélés pour des BIC stables ; sinon, BIC
+    # sur toutes les données (cas de jeux courts).
+    X_sel = X[::thin] if X.shape[0] // thin >= 2 * grid[-1] else X
+
+    models: dict[int, GaussianMixture] = {}
+    bics: dict[int, float] = {}
+    for k in grid:
         gmm = GaussianMixture(
             n_components=k,
             covariance_type="full",
@@ -90,11 +122,11 @@ def _select_gmm(
             reg_covar=1e-5,
         )
         gmm.fit(X)
-        bic = gmm.bic(X)
-        if bic < best_bic:
-            best_bic, best_model, best_k = bic, gmm, k
-    assert best_model is not None
-    return best_model, best_k, float(best_bic)
+        models[k] = gmm
+        bics[k] = float(gmm.bic(X_sel))
+
+    best_k = _elbow_k(grid, bics, params.regime_bic_elbow_frac)
+    return models[best_k], best_k, bics[best_k]
 
 
 def _smooth_labels(labels: pd.Series, window: int) -> pd.Series:

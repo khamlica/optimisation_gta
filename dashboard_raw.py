@@ -342,8 +342,9 @@ with st.sidebar.expander("Régimes & transition", expanded=True):
         help="Vote majoritaire glissant sur les labels (anti-papillotement).",
     )
     max_regimes = st.slider(
-        "Nb max de régimes (grille GMM)", 2, 8, value=5, step=1,
-        help="Le BIC choisit le meilleur nombre dans 2..N.",
+        "Nb max de régimes (grille GMM)", 2, 10, value=8, step=1,
+        help="Borne haute de la grille ; le BIC décorrélé + coude choisit le k "
+             "le plus parcimonieux dans 2..N.",
     )
 
 try:

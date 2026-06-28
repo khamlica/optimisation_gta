@@ -1,6 +1,5 @@
 regime,status,n_train,n_calib,d,p,n_train_clean,thr_Q_time,thr_Q_space,far_calib,far_test
-0,modeled,871,186,1.0,2.0,725.0,69.7847,13.8156,0.0108,0.5798
-1,insufficient_data,84,18,,,,,,,
-2,insufficient_data,113,24,,,,,,,
-3,insufficient_data,116,25,,,,,,,
-4,insufficient_data,30,6,,,,,,,
+0,modeled,927,198,1.0,2.0,741.0,62.9987,11.4104,0.0152,0.64
+1,insufficient_data,116,24,,,,,,,
+2,insufficient_data,72,15,,,,,,,
+3,insufficient_data,116,24,,,,,,,

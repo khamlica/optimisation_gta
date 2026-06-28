@@ -119,11 +119,19 @@ class Params:
     min_calib_windows_per_regime: int = 30
 
     # Régimes (clustering GMM)
-    regime_n_components_grid: tuple[int, ...] = (2, 3, 4, 5)
+    regime_n_components_grid: tuple[int, ...] = (2, 3, 4, 5, 6, 7, 8)
     regime_smooth_window: int = 16     # médiane glissante sur les variables de régime
     regime_label_smooth_window: int = 8  # lissage majoritaire des labels (anti-papillotement)
     regime_random_state: int = 0
     regime_min_fit_points: int = 50    # garde-fou : minimum de points exploitables pour entraîner le GMM
+    # Sélection du nombre de régimes : le BIC est calculé sur un sous-échantillon
+    # DÉCORRÉLÉ (1 point sur regime_bic_thin) car les pas à 15 min sont fortement
+    # autocorrélés (et pré-lissés) ; sans cela le BIC sur-segmente toujours.
+    # Le fit final reste sur TOUTES les données. On retient ensuite le plus petit
+    # k au « coude » : on cesse d'ajouter un régime dès que le gain marginal de
+    # BIC tombe sous regime_bic_elbow_frac × (gain du tout premier ajout).
+    regime_bic_thin: int = 16
+    regime_bic_elbow_frac: float = 0.4
     # Marge de transition exclue APRÈS chaque changement de régime, en pas.
     # Découplée de t : le non-chevauchement des fenêtres est déjà garanti par
     # enumerate_windows ; cette marge ne sert qu'à écarter la rampe de

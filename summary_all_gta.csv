@@ -1,5 +1,5 @@
 gta_id,exclude_vars,exclude_reason,exploitable_pct,monitorable_pct,n_regimes,n_modeled,n_insufficient_regimes,n_windows,FAR_calib_before,FAR_calib_after,n_normal,n_warning,n_alert,n_transition,n_unknown_regime,n_insufficient_data,n_scored_total,n_non_scored_total
-JFC1,,,99.71,83.77,5,4,1,22974,0.0476,0.0139,13460,349,991,7655,0,519,14800,8174
-JFC2,,,73.68,67.42,5,4,1,17358,0.0588,0.0,8475,107,123,8032,0,621,8705,8653
-JFC3,MP,MP excluded for JFC3 because diagnostic shows quasi-constant/degenerated channel,97.47,94.49,5,1,4,17358,,0.0108,8375,237,1097,3976,0,3673,9709,7649
+JFC1,,,99.71,84.27,4,3,1,22974,0.0476,0.0135,14246,167,893,6890,0,778,15306,7668
+JFC2,,,73.68,67.78,3,3,0,17358,0.0588,0.0053,9288,132,306,7632,0,0,9726,7632
+JFC3,MP,MP excluded for JFC3 because diagnostic shows quasi-constant/degenerated channel,97.47,94.59,4,1,3,17358,,0.0152,8770,286,1256,3803,0,3243,10312,7046
 JFC4,,,99.93,78.33,5,3,2,17358,0.0359,0.0049,10147,181,318,5940,0,772,10646,6712
