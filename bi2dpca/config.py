@@ -84,7 +84,11 @@ class Params:
 
     # Échantillonnage / fenêtrage
     dt_minutes: int = 15           # pas régulier des données
-    window_minutes: int = 240      # durée de fenêtre 2D -> t = 240/15 = 16
+    # Fenêtre 2 h -> t = 120/15 = 8. À 15 min le sous-espace temporel est quasi
+    # 1-D (1er axe ~90 % de variance) : 2 h capte la dynamique tout en gardant
+    # ~2x plus de fenêtres, plus de régimes surveillés et moins d'angles morts
+    # (cf. étude t). Au-delà (4 h) on n'ajoute que des axes de faible énergie.
+    window_minutes: int = 120      # durée de fenêtre 2D -> t = 120/15 = 8
     overlap: float = 0.50          # chevauchement offline -> stride = t*(1-overlap)
 
     # Réduction de dimension (Cumulative Percent Variance)
@@ -142,6 +146,12 @@ class Params:
     long_gap_steps: int = 4            # un trou > N pas consécutifs = trou long
     stuck_window: int = 8              # fenêtre de détection capteur bloqué
     stuck_min_std: float = 1e-6        # variance glissante en-dessous = bloqué
+    # Comblage des trous COURTS (<= N pas) par interpolation linéaire, pour ne
+    # pas perdre ~t fenêtres à cause d'un point isolé. Garde-fou : on ne comble
+    # que si le saut aux bords reste petit (sinon le trou masque une vraie
+    # discontinuité) — voir _fill_short_gaps. 0 = désactivé.
+    max_fill_steps: int = 2
+    fill_max_jump_k: float = 4.0       # saut bord max = k * pas-type * (L+1)
 
     # États d'arrêt (machine non surveillée : exclus du fenêtrage et du jeu sain)
     stop_vars: tuple[str, ...] = ("EE",)  # variable(s) de charge servant à détecter l'arrêt

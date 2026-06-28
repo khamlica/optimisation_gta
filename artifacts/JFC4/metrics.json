@@ -1,9 +1,9 @@
 {
   "gta_id": "JFC4",
   "n_points": 17373,
-  "pct_exploitable": 99.93,
+  "pct_exploitable": 99.94,
   "pct_monitorable": 78.33,
-  "n_windows": 1478,
+  "n_windows": 3173,
   "n_regimes": 5,
   "variables": [
     "HP",
@@ -21,8 +21,8 @@
     0,
     4
   ],
-  "far_calib_global": 0.0049,
-  "far_test_global": 0.0335,
+  "far_calib_global": 0.0159,
+  "far_test_global": 0.0181,
   "scores_finite_test": true,
   "bundle": "artifacts/JFC4/bundle.pkl"
 }

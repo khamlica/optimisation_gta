@@ -1,9 +1,9 @@
 {
   "gta_id": "JFC1",
   "n_points": 22989,
-  "pct_exploitable": 99.71,
-  "pct_monitorable": 84.27,
-  "n_windows": 2084,
+  "pct_exploitable": 99.73,
+  "pct_monitorable": 84.32,
+  "n_windows": 4504,
   "n_regimes": 4,
   "variables": [
     "HP",
@@ -15,13 +15,12 @@
   "regimes_modeled": [
     0,
     1,
-    2
-  ],
-  "regimes_insufficient": [
+    2,
     3
   ],
-  "far_calib_global": 0.0135,
-  "far_test_global": 0.3278,
+  "regimes_insufficient": [],
+  "far_calib_global": 0.0119,
+  "far_test_global": 0.3211,
   "scores_finite_test": true,
   "bundle": "artifacts/JFC1/bundle.pkl"
 }

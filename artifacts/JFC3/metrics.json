@@ -3,7 +3,7 @@
   "n_points": 17373,
   "pct_exploitable": 97.47,
   "pct_monitorable": 94.59,
-  "n_windows": 1761,
+  "n_windows": 3797,
   "n_regimes": 4,
   "variables": [
     "HP",
@@ -15,15 +15,14 @@
   ],
   "exclude_reason": "MP excluded for JFC3 because diagnostic shows quasi-constant/degenerated channel",
   "regimes_modeled": [
-    0
-  ],
-  "regimes_insufficient": [
+    0,
     1,
     2,
     3
   ],
-  "far_calib_global": 0.0152,
-  "far_test_global": 0.64,
+  "regimes_insufficient": [],
+  "far_calib_global": 0.0106,
+  "far_test_global": 0.5428,
   "scores_finite_test": true,
   "bundle": "artifacts/JFC3/bundle.pkl"
 }

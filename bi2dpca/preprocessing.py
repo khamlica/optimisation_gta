@@ -45,6 +45,7 @@ class PreprocessResult:
     variables: list[str]
     ranges: dict[str, tuple[float, float]]
     report: dict[str, int]
+    filled: pd.Series
 
 
 def _regular_grid(df: pd.DataFrame, dt_minutes: int) -> pd.DataFrame:
@@ -141,6 +142,65 @@ def _stuck_sensor_mask(
     return stuck
 
 
+def _fill_short_gaps(
+    df: pd.DataFrame,
+    variables: list[str],
+    max_steps: int,
+    jump_k: float,
+) -> tuple[pd.DataFrame, pd.Series]:
+    """Comble par interpolation linéaire les trous **intérieurs** de longueur
+    <= ``max_steps``, uniquement si le saut aux deux bords reste petit.
+
+    Interpolation linéaire (et non médiane/moyenne) : elle préserve la pente
+    locale et n'introduit ni plateau artificiel ni dérive. Le garde-fou de saut
+    évite de « ponter » une vraie discontinuité (où le trou cacherait un
+    évènement). Renvoie ``(df_comblé, filled)`` où ``filled`` marque les points
+    effectivement reconstruits.
+    """
+    filled = pd.Series(False, index=df.index)
+    if max_steps <= 0:
+        return df, filled
+
+    out = df.copy()
+    missing = df.isna().any(axis=1).to_numpy()
+    # Échelle « pas-type » par variable (médiane des |différences premières|).
+    scale = {
+        v: max(float(df[v].diff().abs().median()), 1e-9) for v in variables
+    }
+    arr = {v: out[v].to_numpy() for v in variables}
+    n = len(df)
+    i = 0
+    while i < n:
+        if not missing[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and missing[j]:
+            j += 1
+        L = j - i  # longueur du trou [i, j)
+        # Trou intérieur, court, avec des bords présents des deux côtés.
+        if 0 < L <= max_steps and i - 1 >= 0 and j < n:
+            ok = True
+            for v in variables:
+                before, after = arr[v][i - 1], arr[v][j]
+                if not (np.isfinite(before) and np.isfinite(after)):
+                    ok = False
+                    break
+                if abs(after - before) > jump_k * scale[v] * (L + 1):
+                    ok = False  # saut trop grand -> vraie discontinuité
+                    break
+            if ok:
+                for v in variables:
+                    before, after = arr[v][i - 1], arr[v][j]
+                    for k in range(1, L + 1):
+                        out.iloc[i - 1 + k, out.columns.get_loc(v)] = (
+                            before + (after - before) * k / (L + 1)
+                        )
+                filled.iloc[i:j] = True
+        i = j
+    return out, filled
+
+
 def preprocess(data: GtaData, params: Params = config.DEFAULT_PARAMS) -> PreprocessResult:
     """Applique le préfiltrage grossier et construit le masque ``exploitable``.
 
@@ -151,6 +211,13 @@ def preprocess(data: GtaData, params: Params = config.DEFAULT_PARAMS) -> Preproc
     """
     variables = data.variables
     df = _regular_grid(data.df, params.dt_minutes)
+
+    # Comblage des trous courts (interpolation linéaire bornée) AVANT les masques :
+    # un point isolé manquant ne doit pas coûter ~t fenêtres.
+    df, filled = _fill_short_gaps(
+        df, variables, params.max_fill_steps, params.fill_max_jump_k
+    )
+    filled.name = "filled"
 
     ranges = params.physical_ranges or _auto_ranges(df, variables)
 
@@ -165,6 +232,7 @@ def preprocess(data: GtaData, params: Params = config.DEFAULT_PARAMS) -> Preproc
     report = {
         "n_points": int(len(df)),
         "n_missing": int(missing.sum()),
+        "n_filled": int(filled.sum()),
         "n_out_of_range": int(out_of_range.sum()),
         "n_long_gap": int(long_gap.sum()),
         "n_stuck": int(stuck.sum()),
@@ -177,6 +245,7 @@ def preprocess(data: GtaData, params: Params = config.DEFAULT_PARAMS) -> Preproc
         variables=variables,
         ranges=ranges,
         report=report,
+        filled=filled,
     )
 
 
@@ -200,6 +269,30 @@ def stop_mask(
         if operating.empty:
             continue
         thr = params.stop_frac * float(operating.median())
-        stop |= s < thr
+        stop |= s < thr  # points valides sous le seuil
+
+        # Trous (données manquantes) ENCADRÉS par de l'arrêt : la machine était
+        # éteinte pendant le trou de logging -> arrêt, pas « trou ». On exige les
+        # deux bords sous le seuil pour rester conservateur.
+        arr = s.to_numpy()
+        miss = np.isnan(arr)
+        ext = np.zeros(len(arr), dtype=bool)
+        n = len(arr)
+        i = 0
+        while i < n:
+            if miss[i]:
+                j = i
+                while j < n and miss[j]:
+                    j += 1
+                before = arr[i - 1] if i - 1 >= 0 else np.nan
+                after = arr[j] if j < n else np.nan
+                if (np.isfinite(before) and before < thr) and (
+                    np.isfinite(after) and after < thr
+                ):
+                    ext[i:j] = True
+                i = j
+            else:
+                i += 1
+        stop |= pd.Series(ext, index=pre.df.index)
     stop.name = "stop"
     return stop
