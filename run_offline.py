@@ -32,6 +32,28 @@ from bi2dpca import (
 )
 
 
+def _is_observed_unapproved(
+    ts_train: pd.DatetimeIndex, grid: pd.DatetimeIndex, params: config.Params
+) -> bool:
+    """Régime modélisé mais à baseline non validée : concentré tardivement ET non
+    récurrent. La récurrence = nb de mois à présence significative (≥ N fenêtres),
+    pour ne pas pénaliser un mode légitime mais rare (réparti dans l'historique).
+    """
+    if len(ts_train) == 0:
+        return False
+    span = grid.max() - grid.min()
+    if span.total_seconds() <= 0:
+        return False
+    cutoff = grid.max() - span * params.governance_late_frac
+    late_frac = float((ts_train >= cutoff).mean())
+    counts = pd.Series(pd.PeriodIndex(ts_train, freq="M")).value_counts()
+    recurrent_months = int((counts >= params.governance_min_month_windows).sum())
+    return (
+        late_frac >= params.governance_late_concentration
+        and recurrent_months < params.governance_min_recurrent_months
+    )
+
+
 def train_gta(
     gta_id: str,
     data_path: str,
@@ -80,7 +102,13 @@ def train_gta(
             windows.extract_windows(vals, sp.calib, params.t),
             params,
         )
-        regime_status[r] = "modeled"
+        # Gouvernance : régime scoré mais baseline non validée (tardif & non récurrent).
+        ts_train = pre.df.index[sp.train + params.t - 1]
+        if _is_observed_unapproved(ts_train, pre.df.index, params):
+            regime_status[r] = "observed_unapproved"
+            print(f"[observed_unapproved] régime {r}: baseline tardive non récurrente")
+        else:
+            regime_status[r] = "modeled"
 
     # Diagnostics FAR sur calib (sain) et test.
     far_calib = validation.far_on_windows(
@@ -95,6 +123,7 @@ def train_gta(
 
     # Sérialisation du bundle (tout ce qu'il faut pour le scoring online).
     regimes_insufficient = sorted(r for r, s in regime_status.items() if s == "insufficient_data")
+    regimes_unapproved = sorted(r for r, s in regime_status.items() if s == "observed_unapproved")
     exclude_reason = config.exclude_reason_for(gta_id) if exclude_vars else ""
     bundle = {
         "gta_id": gta_id,
@@ -107,6 +136,7 @@ def train_gta(
         "regime_vars": reg.regime_vars,
         "n_regimes": reg.n_regimes,
         "regimes_insufficient": regimes_insufficient,
+        "regimes_unapproved": regimes_unapproved,
         "models": models,
     }
     bundle_path = os.path.join(out_dir, "bundle.pkl")
@@ -118,7 +148,7 @@ def train_gta(
     for r in sorted(splits):
         sp = splits[r]
         status = regime_status.get(r, "insufficient_data")
-        if status == "modeled":
+        if r in models:  # modeled OU observed_unapproved : régime scoré
             m = models[r]
             rows.append(
                 {
@@ -165,6 +195,7 @@ def train_gta(
         "exclude_reason": exclude_reason,
         "regimes_modeled": sorted(models),
         "regimes_insufficient": regimes_insufficient,
+        "regimes_unapproved": regimes_unapproved,
         "far_calib_global": round(far_calib["far_global"], 4) if far_calib["n_total"] else None,
         "far_test_global": round(far_test["far_global"], 4) if far_test["n_total"] else None,
         "scores_finite_test": bool(finite_ok),

@@ -192,6 +192,17 @@ class Params:
     dynamic_roll_window: int = 96      # fenêtre glissante des features (~1 j à 15 min)
     dynamic_band_k: float = 3.0        # demi-largeur zone de référence = k * IQR réf
 
+    # Gouvernance : un régime apparu tardivement ne doit ni être ignoré, ni
+    # promu automatiquement en baseline saine. On le marque `observed_unapproved`
+    # seulement s'il est À LA FOIS concentré tardivement ET non récurrent (sinon
+    # on pénaliserait un mode légitime mais rare). La récurrence se mesure en
+    # nombre de mois où le régime a une présence « significative » (≥ N fenêtres),
+    # pour ignorer quelques fenêtres éparses (bruit) avant la bouffée tardive.
+    governance_late_frac: float = 0.25        # dernier quart du calendrier = « tardif »
+    governance_late_concentration: float = 0.70  # part des fenêtres du régime en zone tardive
+    governance_min_month_windows: int = 10    # présence « significative » d'un mois
+    governance_min_recurrent_months: int = 2  # < ce nb de mois significatifs = non récurrent
+
     @property
     def t(self) -> int:
         """Nombre de points temporels par fenêtre 2D."""

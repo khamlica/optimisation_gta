@@ -56,6 +56,14 @@ def render() -> None:
                 f"(train={r.get('n_train')}, calib={r.get('n_calib')}) → exclu."
             )
             continue
+        if r.get("status") == "observed_unapproved":
+            notes.append(
+                f"• Régime {rid} : **observed_unapproved** — scoré mais **baseline "
+                "non validée** (apparu tardivement et non récurrent : sa référence "
+                "« saine » contient peut-être déjà la dérive). À ne pas promouvoir "
+                "en normal sans événement confirmé / validation métier."
+            )
+            continue
         far_c, far_t = r.get("far_calib"), r.get("far_test")
         if far_c == far_c and far_t == far_t and far_c < 0.03 and far_t > 0.20:
             notes.append(
