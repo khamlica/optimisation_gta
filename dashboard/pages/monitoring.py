@@ -10,7 +10,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from dashboard import charts, readers, state
+from dashboard import charts, diagnosis, readers, state
 
 ALERT_PAGE = "dashboard/pages/alert_diagnostic.py"
 
@@ -194,6 +194,39 @@ def _energetic_view(gta: str) -> None:
     )
 
 
+def _diagnosis_card(gta: str) -> None:
+    """Carte de synthèse opérateur : 1 label, 1 confiance, 1 badge, raisons, action."""
+    try:
+        res = diagnosis.compute_diagnostic(gta)
+    except Exception:  # noqa: BLE001 - carte non bloquante
+        st.info("Diagnostic synthétique indisponible.")
+        return
+    color = diagnosis.LABEL_COLOR.get(res.label, "#7f7f7f")
+    title = diagnosis.LABEL_TITLE.get(res.label, res.label)
+    qual = "élevée" if res.confidence >= 0.75 else "modérée" if res.confidence >= 0.5 else "faible"
+
+    with st.container(border=True):
+        st.markdown(
+            f"<span style='font-size:1.4em;font-weight:700;color:{color}'>● {title}</span>",
+            unsafe_allow_html=True,
+        )
+        c1, c2, c3 = st.columns([1.2, 1, 1.4])
+        c1.metric("Confiance", f"{res.confidence:.2f}", qual, delta_color="off")
+        c2.metric("Canal dominant", res.dominant_channel)
+        if res.regime_badge:
+            c3.warning(f"⚠ {res.regime_badge}")
+        else:
+            c3.metric("Régime", f"R{int(res.evidence.get('current_regime', -1))}")
+        st.markdown("**Raisons**\n\n" + "\n".join(f"- {r}" for r in res.reason))
+        st.info(f"**Action recommandée** — {res.recommended_action}")
+        st.caption(
+            "Label **déterministe** ; la confiance 0–1 exprime la **solidité des "
+            "indices et la qualité des données**, pas une probabilité de panne. "
+            "Un badge « baseline non approuvée » signale un mode récent sans "
+            "conclure à lui seul à une panne. Détail des 3 canaux ci-dessous."
+        )
+
+
 def _dynamic_view(gta: str) -> None:
     """Panneau traceur dynamique invariant au niveau (couche 2a) — INDICATIF."""
     feats = readers.dynamic_features(gta)
@@ -224,6 +257,10 @@ def render() -> None:
     if gta is None:
         return
     st.title(f"Monitoring temporel — {gta}")
+
+    st.subheader("Synthèse opérateur")
+    _diagnosis_card(gta)
+    st.divider()
 
     series = readers.online_series(gta)
     if series.empty:
