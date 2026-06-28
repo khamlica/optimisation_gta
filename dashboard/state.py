@@ -45,8 +45,6 @@ def init_state() -> None:
     """Initialise les clés d'état transverses si absentes."""
     defaults = {
         "gta": None,            # GTA courant
-        "mode": "Replay",       # Replay | Live
-        "live_every": 20,       # cadence Live (s)
         "regime_filter": "Tous",
         "status_filter": "Tous",
         "date_range": None,

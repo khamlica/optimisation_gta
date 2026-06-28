@@ -13,21 +13,49 @@ from plotly.subplots import make_subplots
 
 from . import state
 
+# Palette catégorielle des régimes : une couleur stable par numéro de régime,
+# pour qu'une même teinte/niveau dans le temps signale « même régime ».
+REGIME_PALETTE = [
+    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
+    "#9467bd", "#8c564b", "#e377c2", "#17becf",
+]
+
+
+def _regime_color(r: int) -> str:
+    return REGIME_PALETTE[int(r) % len(REGIME_PALETTE)]
+
 
 def _status_y(series: pd.DataFrame) -> pd.Series:
     order = {s: i for i, s in enumerate(state.STATUS_ORDER)}
     return series["status"].map(order)
 
 
+def _threshold_step(series: pd.DataFrame, thresholds: dict, key: str) -> pd.Series:
+    """Seuil applicable à chaque fenêtre selon son régime (NaN si non modélisé)."""
+    return series["regime"].map(
+        lambda r: thresholds.get(int(r), {}).get(key, np.nan) if pd.notna(r) else np.nan
+    )
+
+
 def monitoring_figure(series: pd.DataFrame, thresholds: dict | None = None) -> go.Figure:
-    """4 couches alignées : statut, régime, Q_time, Q_space (axe x partagé)."""
+    """4 couches alignées : statut, régime, Q_time, Q_space (axe x partagé).
+
+    ``thresholds`` : ``{regime: {"Q_time": x, "Q_space": y}}`` — trace les lignes
+    de contrôle par régime et surligne les dépassements.
+    """
+    thresholds = thresholds or {}
     fig = make_subplots(
         rows=4,
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.05,
         row_heights=[0.22, 0.16, 0.31, 0.31],
-        subplot_titles=("Statut", "Régime", "Q_time", "Q_space"),
+        subplot_titles=(
+            "Statut",
+            "Régime (même couleur = même régime)",
+            "Q_time (— seuil régime)",
+            "Q_space (— seuil régime)",
+        ),
     )
 
     # --- Statut : un point coloré par fenêtre ---
@@ -49,44 +77,158 @@ def monitoring_figure(series: pd.DataFrame, thresholds: dict | None = None) -> g
             col=1,
         )
 
-    # --- Régime : marche colorée par statut sous-jacent ---
+    # --- Régime : marqueurs colorés par numéro de régime (catégoriel) ---
     if "regime" in series.columns:
-        fig.add_trace(
-            go.Scattergl(
-                x=series.index,
-                y=series["regime"],
-                mode="lines",
-                line=dict(color="#8c564b", width=1, shape="hv"),
-                name="régime",
-                showlegend=False,
-                hovertemplate="%{x}<br>régime %{y}<extra></extra>",
-            ),
-            row=2,
-            col=1,
-        )
+        for r in sorted(int(v) for v in series["regime"].dropna().unique()):
+            sub = series[series["regime"] == r]
+            fig.add_trace(
+                go.Scattergl(
+                    x=sub.index,
+                    y=sub["regime"],
+                    mode="markers",
+                    marker=dict(color=_regime_color(r), size=6),
+                    name=f"régime {r}",
+                    legendgroup=f"reg{r}",
+                    hovertemplate="%{x}<br>régime %{y}<extra></extra>",
+                ),
+                row=2,
+                col=1,
+            )
 
-    # --- Q_time / Q_space ---
-    for row, col_name in ((3, "score_Q_time"), (4, "score_Q_space")):
-        if col_name not in series.columns:
+    # --- Q_time / Q_space : score + seuil régime + dépassements ---
+    for row, score_col, thr_key in (
+        (3, "score_Q_time", "Q_time"),
+        (4, "score_Q_space", "Q_space"),
+    ):
+        if score_col not in series.columns:
             continue
         fig.add_trace(
             go.Scattergl(
                 x=series.index,
-                y=series[col_name],
+                y=series[score_col],
                 mode="lines",
                 line=dict(color="#1f77b4", width=1),
-                name=col_name,
+                name=score_col,
                 showlegend=False,
-                hovertemplate="%{x}<br>" + col_name + "=%{y:.2f}<extra></extra>",
+                hovertemplate="%{x}<br>" + score_col + "=%{y:.2f}<extra></extra>",
             ),
             row=row,
             col=1,
         )
+        if thresholds:
+            thr = _threshold_step(series, thresholds, thr_key)
+            fig.add_trace(
+                go.Scattergl(
+                    x=series.index, y=thr, mode="lines",
+                    line=dict(color="#d62728", width=1, dash="dot", shape="hv"),
+                    name="seuil", showlegend=(row == 3), legendgroup="seuil",
+                    hovertemplate="seuil=%{y:.2f}<extra></extra>",
+                ),
+                row=row, col=1,
+            )
+            exceed = series[score_col] > thr
+            if exceed.any():
+                ex = series[exceed]
+                fig.add_trace(
+                    go.Scattergl(
+                        x=ex.index, y=ex[score_col], mode="markers",
+                        marker=dict(color="#d62728", size=4),
+                        name="dépassement", showlegend=(row == 3),
+                        legendgroup="exceed",
+                        hovertemplate="%{x}<br>dépassement " + score_col
+                        + "=%{y:.2f}<extra></extra>",
+                    ),
+                    row=row, col=1,
+                )
 
     fig.update_layout(
-        height=720,
-        margin=dict(l=60, r=20, t=40, b=30),
+        height=760,
+        margin=dict(l=60, r=20, t=50, b=30),
         legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="left", x=0),
+        hovermode="x unified",
+    )
+    fig.update_yaxes(title_text="régime", row=2, col=1, dtick=1)
+    return fig
+
+
+def physical_figure(
+    df: pd.DataFrame,
+    regime: pd.Series,
+    mode: str,
+    *,
+    baseline: tuple[float, float, float] | None = None,
+) -> go.Figure:
+    """Vue physique/interprétable alignée sur la timeline.
+
+    ``mode`` :
+    - ``"Rendement EE/HP"`` : ratio EE/HP coloré par régime + médiane glissante 1 j ;
+      ``baseline`` = (médiane, q25, q75) de référence tracée en bande.
+    - ``"Variables brutes"`` : HP, BP, EE en sous-graphes.
+    """
+    reg = regime.reindex(df.index)
+
+    if mode == "Variables brutes":
+        cols = [c for c in ("HP", "BP", "EE") if c in df.columns]
+        fig = make_subplots(
+            rows=len(cols), cols=1, shared_xaxes=True,
+            vertical_spacing=0.04, subplot_titles=cols,
+        )
+        for i, c in enumerate(cols, start=1):
+            fig.add_trace(
+                go.Scattergl(
+                    x=df.index, y=df[c], mode="lines",
+                    line=dict(color="#1f77b4", width=1),
+                    name=c, showlegend=False,
+                    hovertemplate="%{x}<br>" + c + "=%{y:.2f}<extra></extra>",
+                ),
+                row=i, col=1,
+            )
+        fig.update_layout(
+            height=160 * len(cols), margin=dict(l=60, r=20, t=40, b=30),
+            hovermode="x unified",
+        )
+        return fig
+
+    # --- Rendement EE/HP ---
+    ratio = pd.Series(np.nan, index=df.index)
+    if {"EE", "HP"}.issubset(df.columns):
+        ok = df["HP"] > 1.0  # éviter la division près de l'arrêt
+        ratio[ok] = df.loc[ok, "EE"] / df.loc[ok, "HP"]
+
+    fig = go.Figure()
+    if baseline is not None:
+        med, q25, q75 = baseline
+        fig.add_hrect(y0=q25, y1=q75, fillcolor="#2ca02c", opacity=0.12, line_width=0)
+        fig.add_hline(y=med, line=dict(color="#2ca02c", width=1, dash="dash"),
+                      annotation_text="référence (sain)", annotation_position="right")
+
+    for r in sorted(int(v) for v in reg.dropna().unique()):
+        m = (reg == r) & ratio.notna()
+        if not m.any():
+            continue
+        fig.add_trace(
+            go.Scattergl(
+                x=ratio.index[m], y=ratio[m], mode="markers",
+                marker=dict(color=_regime_color(r), size=4),
+                name=f"régime {r}", legendgroup=f"reg{r}",
+                hovertemplate="%{x}<br>EE/HP=%{y:.3f}<br>régime " + str(r)
+                + "<extra></extra>",
+            )
+        )
+    # Médiane glissante 1 jour (96 pas) pour la tendance.
+    roll = ratio.rolling(96, min_periods=12, center=True).median()
+    fig.add_trace(
+        go.Scattergl(
+            x=roll.index, y=roll, mode="lines",
+            line=dict(color="#000000", width=1.5),
+            name="médiane glissante 1 j",
+            hovertemplate="%{x}<br>médiane EE/HP=%{y:.3f}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        height=380, margin=dict(l=60, r=20, t=30, b=30),
+        yaxis_title="Rendement EE/HP",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         hovermode="x unified",
     )
     return fig

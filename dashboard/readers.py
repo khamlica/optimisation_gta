@@ -146,6 +146,68 @@ def processed_frame(gta: str) -> dict:
         return {}
 
 
+@st.cache_data(show_spinner="Décomposition des non-observables…")
+def window_causes(gta: str) -> pd.DataFrame:
+    """Cause de (non-)scorabilité de chaque fenêtre de la grille, fidèle à l'online.
+
+    Reconstruit les masques via le bundle (même modèle de régime que l'online) et
+    classe chaque fenêtre par cause : ``scorable`` ou l'un des motifs de rejet.
+    Renvoie un DataFrame indexé par ``t_end`` avec une colonne ``cause``.
+    """
+    b = bundle(gta)
+    if not b:
+        return pd.DataFrame()
+    try:
+        from bi2dpca import io_data, preprocessing
+        from bi2dpca import regimes as R
+        from bi2dpca import windows as W
+
+        params = b["params"]
+        t = params.t
+        exclude = tuple(b.get("exclude_vars", []))
+        data = io_data.load_gta(io_data.resolve_data_path(gta), gta, exclude_vars=exclude)
+        pre = preprocessing.preprocess(data, params)
+        regime, transition = R.assign_regimes(
+            pre, b["regime_model"], b["regime_scaler"], b["regime_vars"], params
+        )
+        stop = W.stop_mask(pre, params)
+        reg = regime.to_numpy()
+        expl = pre.exploitable.to_numpy()
+        stopa = stop.to_numpy()
+        mon = (pre.exploitable & (~transition) & (~stop) & (regime >= 0)).to_numpy()
+        idx = pre.df.index
+        models = b.get("models", {})
+        insuff = set(b.get("regimes_insufficient", []))
+        stride = max(1, params.online_stride_steps)
+
+        n = len(reg)
+        rows: list[tuple] = []
+        for s in range(0, n - t + 1, stride):
+            sl_reg = reg[s : s + t]
+            sl_mon = mon[s : s + t]
+            r0 = int(sl_reg[0])
+            end = idx[s + t - 1]
+            if sl_mon.all() and r0 >= 0 and (sl_reg == r0).all():
+                if r0 in models:
+                    cause = "scorable"
+                elif r0 in insuff:
+                    cause = "insufficient_data"
+                else:
+                    cause = "unknown_regime"
+            elif stopa[s : s + t].any():
+                cause = "arrêt"
+            elif (~expl[s : s + t]).any():
+                cause = "trou / non-exploitable"
+            elif (sl_reg != r0).any() or (sl_reg < 0).any():
+                cause = "frontière régime"
+            else:
+                cause = "marge transition"
+            rows.append((end, cause))
+        return pd.DataFrame(rows, columns=["t_end", "cause"]).set_index("t_end")
+    except Exception:  # noqa: BLE001 - décomposition optionnelle, jamais bloquante
+        return pd.DataFrame()
+
+
 def _read_json(path: Path) -> dict:
     if not path.exists():
         return {}
