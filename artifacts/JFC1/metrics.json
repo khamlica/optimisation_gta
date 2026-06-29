@@ -19,7 +19,6 @@
     3
   ],
   "regimes_insufficient": [],
-  "regimes_unapproved": [],
   "far_calib_global": 0.0119,
   "far_test_global": 0.3211,
   "scores_finite_test": true,
