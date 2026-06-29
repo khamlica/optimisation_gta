@@ -99,18 +99,13 @@ def _non_observable_breakdown(gta: str, period: tuple | None) -> None:
 
 
 def _thresholds(gta: str) -> dict[int, dict[str, float]]:
-    """Seuils Q_time / Q_space par régime SCORÉ (depuis regime_summary.csv).
-
-    Inclut les régimes ``observed_unapproved`` : ils sont scorés online avec ces
-    seuils, donc la ligne doit apparaître sur la timeline (même si la baseline
-    sous-jacente n'est pas validée).
-    """
+    """Seuils Q_time / Q_space par régime modélisé (depuis regime_summary.csv)."""
     rm = readers.regime_metrics(gta)
     if rm.empty or "thr_Q_time" not in rm.columns:
         return {}
     out: dict[int, dict[str, float]] = {}
     for _, r in rm.iterrows():
-        if r.get("status") not in ("modeled", "observed_unapproved"):
+        if r.get("status") != "modeled":
             continue
         out[int(r["regime"])] = {
             "Q_time": float(r["thr_Q_time"]),

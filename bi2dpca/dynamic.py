@@ -63,20 +63,12 @@ def dynamic_feature_frame(
         return pd.DataFrame()
     df = pre.df.loc[rf.index]  # mêmes points opérationnels
 
-    # Différences premières COUPÉES sur les trous temporels : on ne relie que des
-    # points réellement consécutifs (un pas de dt_minutes) ; sinon Δ enjamberait
-    # un arrêt/trou et créerait un saut parasite.
-    dt = pd.Timedelta(minutes=params.dt_minutes)
-    adjacent = rf.index.to_series().diff() == dt
-
-    def _adj_diff(s: pd.Series) -> pd.Series:
-        return s.diff().where(adjacent)
-
-    d_hp = _adj_diff(df["HP"]) if "HP" in df else None
-    d_bp = _adj_diff(df["BP"]) if "BP" in df else None
-    d_ee = _adj_diff(df["EE"]) if "EE" in df else None
+    # Différences entre points opérationnels consécutifs (level-invariant).
+    d_hp = df["HP"].diff() if "HP" in df else None
+    d_bp = df["BP"].diff() if "BP" in df else None
+    d_ee = df["EE"].diff() if "EE" in df else None
     resid = rf["resid"]
-    d_resid = _adj_diff(resid)
+    d_resid = resid.diff()
 
     w = params.dynamic_roll_window
     mp = max(8, w // 4)
