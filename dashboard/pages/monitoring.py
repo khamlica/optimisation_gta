@@ -189,31 +189,6 @@ def _energetic_view(gta: str) -> None:
     )
 
 
-def _dynamic_view(gta: str) -> None:
-    """Panneau traceur dynamique invariant au niveau (couche 2a) — INDICATIF."""
-    feats = readers.dynamic_features(gta)
-    meta = readers.dynamic_meta(gta)
-    if feats.empty or not meta:
-        st.info("Traceur dynamique indisponible (`dynamic_features.csv`).")
-        return
-    st.caption(
-        "**Indicatif, non décisionnel.** Après retrait du niveau (différences / "
-        "résidu énergétique) : volatilité, autocorrélation, couplages d'incréments. "
-        "La zone verte est une **référence visuelle** (médiane ± k·IQR sur le sain), "
-        "**pas une limite de contrôle** — aucune alerte n'en découle. Répond à : "
-        "« reste-t-il un signal *dynamique local* après retrait du rendement ? »."
-    )
-    st.plotly_chart(
-        charts.dynamic_figure(feats, meta), width="stretch", key=f"dyn_{gta}"
-    )
-    st.caption(
-        f"Référence ≤ {meta.get('ref_end')} · fenêtre glissante "
-        f"{meta.get('roll_window')} pas. Pour JFC1/JFC3, ces indicateurs restent "
-        "plats → la dérive est **statique** (lue par le cross-check énergétique), "
-        "pas une instabilité dynamique locale."
-    )
-
-
 def render() -> None:
     gta = _pick_gta()
     if gta is None:
@@ -230,13 +205,6 @@ def render() -> None:
     _non_observable_breakdown(gta, period)
 
     st.subheader("Timeline statut / régime / Q_time / Q_space")
-    st.caption(
-        "Sémantique : `Q_time`/`Q_space` mesurent un **écart à la baseline "
-        "multivariable du régime** (sensible et précoce), **pas** une anomalie "
-        "dynamique locale pure — un déplacement de rendement/point de "
-        "fonctionnement les fait réagir. Voir performance statique (cross-check "
-        "énergétique) et dynamique locale (traceur) ci-dessous."
-    )
     fig = charts.monitoring_figure(series_f, _thresholds(gta))
     sel = st.plotly_chart(fig, width="stretch", on_select="rerun", key=f"mon_{gta}")
 
@@ -268,10 +236,6 @@ def render() -> None:
     st.divider()
     st.subheader("Cross-check énergétique (EE = f(HP, BP, MP))")
     _energetic_view(gta)
-
-    st.divider()
-    st.subheader("Moniteur dynamique (invariant au niveau) — traceur, indicatif")
-    _dynamic_view(gta)
 
     with st.expander("Figure offline de référence (image)"):
         p = readers.figure_path(gta, "monitoring_online.png")

@@ -84,21 +84,6 @@ def energetic_meta(gta: str) -> dict:
     return _read_json(ARTIFACTS_DIR / gta / "energetic.json")
 
 
-@st.cache_data(show_spinner=False, ttl=5)
-def dynamic_features(gta: str) -> pd.DataFrame:
-    """Features dynamiques invariantes au niveau (dynamic_features.csv)."""
-    path = ARTIFACTS_DIR / gta / "dynamic_features.csv"
-    if not path.exists():
-        return pd.DataFrame()
-    return pd.read_csv(path, parse_dates=[0], index_col=0)
-
-
-@st.cache_data(show_spinner=False)
-def dynamic_meta(gta: str) -> dict:
-    """Zone de référence / roll window du traceur dynamique."""
-    return _read_json(ARTIFACTS_DIR / gta / "dynamic.json")
-
-
 @st.cache_data(show_spinner=False)
 def metrics(gta: str) -> dict:
     return _read_json(ARTIFACTS_DIR / gta / "metrics.json")

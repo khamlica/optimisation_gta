@@ -20,7 +20,6 @@ import pandas as pd
 
 from bi2dpca import (
     config,
-    dynamic,
     energetic,
     healthy,
     io_data,
@@ -189,8 +188,7 @@ def train_gta(
         )
 
     # Cross-check énergétique (V2) : EE = f(HP, MP, BP) sur réf saine -> résidu.
-    ref_end = config.energetic_ref_end(gta_id)
-    em = energetic.fit_energy_model(pre, params, ref_end=ref_end)
+    em = energetic.fit_energy_model(pre, params, ref_end=config.energetic_ref_end(gta_id))
     if em is not None:
         rf = energetic.residual_frame(pre, em, params)
         rf.to_csv(os.path.join(out_dir, "energetic_residual.csv"))
@@ -206,24 +204,6 @@ def train_gta(
                 },
                 f, indent=2, ensure_ascii=False,
             )
-
-        # Traceur dynamique invariant au niveau (couche 2a) : INDICATIF seulement.
-        dyn = dynamic.fit_dynamic_reference(pre, em, params, ref_end=ref_end)
-        if dyn is not None:
-            dref, feats = dyn
-            feats.to_csv(os.path.join(out_dir, "dynamic_features.csv"))
-            with open(os.path.join(out_dir, "dynamic.json"), "w") as f:
-                json.dump(
-                    {
-                        "features": dref.features,
-                        "band": dref.band,
-                        "ref_end": dref.ref_end,
-                        "roll_window": dref.roll_window,
-                        "n_ref": dref.n_ref,
-                        "band_k": params.dynamic_band_k,
-                    },
-                    f, indent=2, ensure_ascii=False,
-                )
 
     print(json.dumps(metrics, indent=2, ensure_ascii=False))
     print("\n", summary.to_string(index=False))
