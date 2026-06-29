@@ -107,10 +107,16 @@ def _thresholds(gta: str) -> dict[int, dict[str, float]]:
     for _, r in rm.iterrows():
         if r.get("status") != "modeled":
             continue
-        out[int(r["regime"])] = {
+        d = {
             "Q_time": float(r["thr_Q_time"]),
             "Q_space": float(r["thr_Q_space"]),
         }
+        # Seuils T² (affichage indicatif) si présents dans regime_summary.
+        for k in ("T2_time", "T2_space"):
+            col = f"thr_{k}"
+            if col in rm.columns and pd.notna(r.get(col)):
+                d[k] = float(r[col])
+        out[int(r["regime"])] = d
     return out
 
 
@@ -204,7 +210,12 @@ def render() -> None:
     _coverage_banner(series_f)
     _non_observable_breakdown(gta, period)
 
-    st.subheader("Timeline statut / régime / Q_time / Q_space")
+    st.subheader("Timeline statut / régime / Q / T²")
+    st.caption(
+        "Q (time/space) pilote la décision : seuil par régime + dépassements "
+        "surlignés. T² (time/space) est affiché avec son seuil **à titre "
+        "indicatif** — il ne déclenche aucune alerte."
+    )
     fig = charts.monitoring_figure(series_f, _thresholds(gta))
     sel = st.plotly_chart(fig, width="stretch", on_select="rerun", key=f"mon_{gta}")
 

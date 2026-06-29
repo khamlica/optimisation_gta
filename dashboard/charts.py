@@ -38,23 +38,28 @@ def _threshold_step(series: pd.DataFrame, thresholds: dict, key: str) -> pd.Seri
 
 
 def monitoring_figure(series: pd.DataFrame, thresholds: dict | None = None) -> go.Figure:
-    """4 couches alignées : statut, régime, Q_time, Q_space (axe x partagé).
+    """6 couches alignées : statut, régime, Q_time, Q_space, T2_time, T2_space.
 
-    ``thresholds`` : ``{regime: {"Q_time": x, "Q_space": y}}`` — trace les lignes
-    de contrôle par régime et surligne les dépassements.
+    ``thresholds`` : ``{regime: {"Q_time": x, "Q_space": y, "T2_time": ..,
+    "T2_space": ..}}`` — trace les lignes de contrôle par régime. Les
+    dépassements sont surlignés UNIQUEMENT pour Q (indices décisionnels) ; les
+    panneaux T² affichent le score et son seuil mais **ne pilotent aucune
+    alerte** (indicatif).
     """
     thresholds = thresholds or {}
     fig = make_subplots(
-        rows=4,
+        rows=6,
         cols=1,
         shared_xaxes=True,
-        vertical_spacing=0.05,
-        row_heights=[0.22, 0.16, 0.31, 0.31],
+        vertical_spacing=0.035,
+        row_heights=[0.12, 0.10, 0.195, 0.195, 0.195, 0.195],
         subplot_titles=(
             "Statut",
             "Régime (même couleur = même régime)",
             "Q_time (— seuil régime)",
             "Q_space (— seuil régime)",
+            "T2_time (— seuil régime, indicatif)",
+            "T2_space (— seuil régime, indicatif)",
         ),
     )
 
@@ -95,19 +100,22 @@ def monitoring_figure(series: pd.DataFrame, thresholds: dict | None = None) -> g
                 col=1,
             )
 
-    # --- Q_time / Q_space : score + seuil régime + dépassements ---
-    for row, score_col, thr_key in (
-        (3, "score_Q_time", "Q_time"),
-        (4, "score_Q_space", "Q_space"),
+    # --- Q (décisionnel : seuil + dépassements) puis T² (indicatif : seuil seul) ---
+    for row, score_col, thr_key, mark_exceed in (
+        (3, "score_Q_time", "Q_time", True),
+        (4, "score_Q_space", "Q_space", True),
+        (5, "score_T2_time", "T2_time", False),
+        (6, "score_T2_space", "T2_space", False),
     ):
         if score_col not in series.columns:
             continue
+        line_color = "#1f77b4" if mark_exceed else "#7f7f7f"
         fig.add_trace(
             go.Scattergl(
                 x=series.index,
                 y=series[score_col],
                 mode="lines",
-                line=dict(color="#1f77b4", width=1),
+                line=dict(color=line_color, width=1),
                 name=score_col,
                 showlegend=False,
                 hovertemplate="%{x}<br>" + score_col + "=%{y:.2f}<extra></extra>",
@@ -126,23 +134,25 @@ def monitoring_figure(series: pd.DataFrame, thresholds: dict | None = None) -> g
                 ),
                 row=row, col=1,
             )
-            exceed = series[score_col] > thr
-            if exceed.any():
-                ex = series[exceed]
-                fig.add_trace(
-                    go.Scattergl(
-                        x=ex.index, y=ex[score_col], mode="markers",
-                        marker=dict(color="#d62728", size=4),
-                        name="dépassement", showlegend=(row == 3),
-                        legendgroup="exceed",
-                        hovertemplate="%{x}<br>dépassement " + score_col
-                        + "=%{y:.2f}<extra></extra>",
-                    ),
-                    row=row, col=1,
-                )
+            # Dépassements surlignés pour Q seulement (T² = indicatif, non décisionnel).
+            if mark_exceed:
+                exceed = series[score_col] > thr
+                if exceed.any():
+                    ex = series[exceed]
+                    fig.add_trace(
+                        go.Scattergl(
+                            x=ex.index, y=ex[score_col], mode="markers",
+                            marker=dict(color="#d62728", size=4),
+                            name="dépassement", showlegend=(row == 3),
+                            legendgroup="exceed",
+                            hovertemplate="%{x}<br>dépassement " + score_col
+                            + "=%{y:.2f}<extra></extra>",
+                        ),
+                        row=row, col=1,
+                    )
 
     fig.update_layout(
-        height=760,
+        height=1080,
         margin=dict(l=60, r=20, t=50, b=30),
         legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="left", x=0),
         hovermode="x unified",

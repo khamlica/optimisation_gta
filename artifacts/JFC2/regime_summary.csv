@@ -1,4 +1,4 @@
-regime,status,n_train,n_calib,d,p,n_train_clean,thr_Q_time,thr_Q_space,far_calib,far_test
-0,modeled,815,174,1,2,671,62.4897,7.1578,0.0115,0.0341
-1,modeled,567,121,1,2,412,55.5297,0.4905,0.0165,0.1057
-2,modeled,567,121,1,2,485,28.5682,3.7007,0.0083,0.2131
+regime,status,n_train,n_calib,d,p,n_train_clean,thr_Q_time,thr_Q_space,thr_T2_time,thr_T2_space,far_calib,far_test
+0,modeled,815,174,1,2,671,62.4897,7.1578,12.8156,23.5653,0.0115,0.0341
+1,modeled,567,121,1,2,412,55.5297,0.4905,5.5895,9.7296,0.0165,0.1057
+2,modeled,567,121,1,2,485,28.5682,3.7007,3.4264,14.2764,0.0083,0.2131

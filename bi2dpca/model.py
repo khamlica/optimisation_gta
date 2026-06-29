@@ -246,7 +246,11 @@ def train_regime_model(
     # train, pour éviter un seuil optimiste tiré par les données d'entraînement).
     calib_std = (calib_windows - mean[None, None, :]) / std[None, None, :]
     cal_scores = score_windows(calib_std, V, U, lambda_time, lambda_space)
-    thresholds = {idx: fit_threshold(cal_scores[idx], params) for idx in active}
+    # Seuils calibrés pour TOUS les indices (Q + T²) afin de pouvoir AFFICHER le
+    # seuil T². Seuls ``active_indices`` (Q par défaut) pilotent la détection :
+    # disposer d'un seuil T² ne le branche pas sur l'alerte.
+    all_indices = QUALITY_INDICES + T2_INDICES
+    thresholds = {idx: fit_threshold(cal_scores[idx], params) for idx in all_indices}
 
     return RegimeModel(
         regime_id=regime_id,
